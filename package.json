@@ -1,0 +1,91 @@
+{
+  "name": "appium-template-plugin",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./lib/index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "prepublish": "npx tsc",
+    "lint": "eslint '**/*.js' --fix",
+    "prettier": "prettier '**/*.js' --write --single-quote",
+    "uninstall": "(appium plugin uninstall template-plugin || exit 0)",
+    "install-plugin": "npm run build && appium plugin install --source=local $(pwd)",
+    "reinstall-plugin": "(appium plugin uninstall template-plugin || exit 0) && npm run install-plugin"
+  },
+  "contributors": [
+    {
+      "name": "Saikrishna",
+      "email": "saikrishna321@yahoo.com"
+    },
+    {
+      "name": "Srinivasan Sekar",
+      "email": "srinivasan.sekar1990@gmail.com"
+    }
+  ],
+  "license": "ISC",
+  "peerDependencies": {
+    "appium": "2.1.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.3.4",
+    "@babel/plugin-proposal-class-properties": "^7.13.0",
+    "@types/chai": "^4.2.16",
+    "@types/lodash": "^4.14.170",
+    "@types/mocha": "^8.2.2",
+    "@types/node": "^15.6.1",
+    "babel-eslint": "^10.0.1",
+    "chai": "^4.1.0",
+    "eslint": "^7.23.0",
+    "eslint-config-prettier": "^8.1.0",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-prettier": "^3.0.1",
+    "android-apidemos": "^4.1.1",
+    "appium-espresso-driver": "^2.25.3",
+    "appium-uiautomator2-driver": "^2.29.5",
+    "husky": "^6.0.0",
+    "lint-staged": "^11.0.0",
+    "mocha": "^8.3.2",
+    "prettier": "^2.0.5",
+    "sinon": "^11.0.0",
+    "ts-node": "^10.0.0",
+    "typescript": "^4.2.3"
+  },
+  "appium": {
+    "pluginName": "template-plugin",
+    "mainClass": "TemplatePlugin",
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema",
+      "additionalProperties": false,
+      "description": "Appium configuration schema for the template plugin.",
+      "properties": {
+        "interval": {
+          "type": "number"
+        }
+      },
+      "title": "Appium template plugin",
+      "type": "object"
+    }
+  },
+  "engines": {
+    "node": ">=16",
+    "npm": ">=8"
+  },
+  "lint-staged": {
+    "src/*.{js,jsx,ts,tsx,json,css,scss,md}": [
+      "npm run prettier",
+      "git add"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test"
+    }
+  },
+  "files": [
+    "lib"
+  ],
+  "dependencies": {
+    "axios": "^0.27.0"
+  }
+}
