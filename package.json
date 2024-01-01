@@ -1,16 +1,16 @@
 {
-  "name": "appium-template-plugin",
+  "name": "appium-interceptor",
   "version": "1.0.0",
-  "description": "",
+  "description": "Appium 2.0 plugin to mock api calls for android apps",
   "main": "./lib/index.js",
   "scripts": {
     "build": "npx tsc",
     "prepublish": "npx tsc",
     "lint": "eslint '**/*.js' --fix",
     "prettier": "prettier '**/*.js' --write --single-quote",
-    "uninstall": "(appium plugin uninstall template-plugin || exit 0)",
-    "install-plugin": "npm run build && appium plugin install --source=local $(pwd)",
-    "reinstall-plugin": "(appium plugin uninstall template-plugin || exit 0) && npm run install-plugin"
+    "uninstall": "export APPIUM_HOME=/tmp/some-temp-dir && (appium plugin uninstall appium-interceptor || exit 0)",
+    "install-plugin": "export APPIUM_HOME=/tmp/some-temp-dir && npm run build && appium plugin install --source=local $(pwd)",
+    "reinstall-plugin": "export APPIUM_HOME=/tmp/some-temp-dir && (appium plugin uninstall appium-interceptor || exit 0) && npm run install-plugin"
   },
   "contributors": [
     {
@@ -20,11 +20,15 @@
     {
       "name": "Srinivasan Sekar",
       "email": "srinivasan.sekar1990@gmail.com"
+    },
+    {
+      "name": "Sudharsan Selvaraj",
+      "email": "sudharsanselvaraj.c0@gmail.com"
     }
   ],
   "license": "ISC",
   "peerDependencies": {
-    "appium": "2.1.1"
+    "appium": "2.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.3.4",
@@ -33,15 +37,15 @@
     "@types/lodash": "^4.14.170",
     "@types/mocha": "^8.2.2",
     "@types/node": "^15.6.1",
+    "android-apidemos": "^4.1.1",
+    "appium-espresso-driver": "^2.25.3",
+    "appium-uiautomator2-driver": "^2.29.5",
     "babel-eslint": "^10.0.1",
     "chai": "^4.1.0",
     "eslint": "^7.23.0",
     "eslint-config-prettier": "^8.1.0",
     "eslint-plugin-import": "^2.8.0",
     "eslint-plugin-prettier": "^3.0.1",
-    "android-apidemos": "^4.1.1",
-    "appium-espresso-driver": "^2.25.3",
-    "appium-uiautomator2-driver": "^2.29.5",
     "husky": "^6.0.0",
     "lint-staged": "^11.0.0",
     "mocha": "^8.3.2",
@@ -51,18 +55,15 @@
     "typescript": "^4.2.3"
   },
   "appium": {
-    "pluginName": "template-plugin",
-    "mainClass": "TemplatePlugin",
+    "pluginName": "appium-interceptor",
+    "mainClass": "AppiumInterceptorPlugin",
     "schema": {
       "$schema": "http://json-schema.org/draft-07/schema",
       "additionalProperties": false,
-      "description": "Appium configuration schema for the template plugin.",
+      "description": "Appium configuration schema for the interceptor plugin.",
       "properties": {
-        "interval": {
-          "type": "number"
-        }
       },
-      "title": "Appium template plugin",
+      "title": "Appium interceptor plugin",
       "type": "object"
     }
   },
@@ -86,6 +87,7 @@
     "lib"
   ],
   "dependencies": {
+    "@appium/support": "^4.1.11",
     "axios": "^0.27.0"
   }
 }
