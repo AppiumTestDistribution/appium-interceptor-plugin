@@ -1,3 +1,3 @@
-import {AppiumInterceptorPlugin} from './plugin';
+import { AppiumInterceptorPlugin } from './plugin';
 export default AppiumInterceptorPlugin;
 export { AppiumInterceptorPlugin };
