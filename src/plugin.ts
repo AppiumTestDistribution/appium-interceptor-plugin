@@ -27,13 +27,11 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       return response;
     }
 
-    const interceptFlag = _.merge(caps.alwaysMatch, caps.firstMatch[0] || {})['appium:intercept'];
-    const sessionCaps = response.value[1];
-
-    const deviceUDID = sessionCaps.deviceUDID;
+    const mergedCaps = { ...caps.alwaysMatch, ..._.get(caps, 'firstMatch[0]', {}) };
+    const interceptFlag = mergedCaps['appium:intercept'];
+    const { deviceUDID, platformName } = response.value[1];
     const sessionId = response.value[0];
-    const platformName = sessionCaps.platformName;
-    const adb = driver.sessions[response.value[0]]?.adb;
+    const adb = driver.sessions[sessionId]?.adb;
 
     if (interceptFlag && platformName.toLowerCase().trim() === 'android') {
       const realDevice = await isRealDevice(adb, deviceUDID);

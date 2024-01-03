@@ -25,62 +25,40 @@ export function constructURLFromRequest(request: { protocol: string; path: strin
 }
 
 export function updateRequestUrl(ctx: IContext, apiMock: ApiMock) {
-  if (!apiMock.updateUrl) {
+  if (!apiMock.updateUrl || !ctx.clientToProxyRequest || !ctx.proxyToServerRequestOptions) {
     return;
   }
 
-  if (ctx.clientToProxyRequest?.headers.host && ctx.proxyToServerRequestOptions?.host) {
-    let request = ctx.clientToProxyRequest;
-    const originalUrl = constructURLFromRequest({
-      host: request.headers.host!,
-      path: request.url!,
-      protocol: ctx.isSSL ? 'https://' : 'http://',
-    });
+  const { headers, url } = ctx.clientToProxyRequest;
+  const protocol = ctx.isSSL ? 'https://' : 'http://';
+  const originalUrl = constructURLFromRequest({
+    host: headers.host!,
+    path: url!,
+    protocol,
+  });
 
-    let matchers = _.isArray(apiMock.updateUrl) ? apiMock.updateUrl : [apiMock.updateUrl];
-    let updatedUrlString = originalUrl.toString();
-    for (let matcher of matchers) {
-      updatedUrlString = updatedUrlString.replace(
-        parseRegex(matcher.pattern as string),
-        matcher.replaceWith
-      );
-    }
+  const updateUrlMatchers = _.castArray(apiMock.updateUrl);
+  const updatedUrlString = updateUrlMatchers.reduce((current, matcher) => {
+    return current.replace(parseRegex(matcher.pattern as string), matcher.replaceWith);
+  }, originalUrl.toString());
 
-    const updatedUrl = new URL(updatedUrlString);
-    ctx.proxyToServerRequestOptions.host = updatedUrl.hostname;
-    ctx.proxyToServerRequestOptions.path = `${updatedUrl.pathname}${updatedUrl.search}`;
-    ctx.proxyToServerRequestOptions.port = updatedUrl.port || ctx.proxyToServerRequestOptions.port;
-  }
+  const updatedUrl = new URL(updatedUrlString);
+  ctx.proxyToServerRequestOptions.host = updatedUrl.hostname;
+  ctx.proxyToServerRequestOptions.path = `${updatedUrl.pathname}${updatedUrl.search}`;
+  ctx.proxyToServerRequestOptions.port = updatedUrl.port || ctx.proxyToServerRequestOptions.port;
 }
 
 export function updateRequestHeaders(ctx: IContext, apiMock: ApiMock) {
-  if (!apiMock.headers) {
+  if (!apiMock.headers || !ctx.proxyToServerRequestOptions) {
     return;
   }
 
-  let headersToBeAdded: Record<string, string> = {};
-  let headersToBeDeleted = [];
-
-  if (apiMock.headers.hasOwnProperty('add') || apiMock.headers.hasOwnProperty('remove')) {
-    if (!_.isNil(apiMock.headers.add) && typeof apiMock.headers.add === 'object') {
-      headersToBeAdded = apiMock.headers.add || ({} as any);
-    }
-
-    if (!_.isNil(apiMock.headers.remove) && _.isArray(apiMock.headers.remove)) {
-      headersToBeDeleted = apiMock.headers.remove;
-    }
-  } else {
-    headersToBeAdded = apiMock.headers as any;
+  const { headers } = ctx.proxyToServerRequestOptions;
+  if (apiMock.headers.add) {
+    Object.assign(headers, apiMock.headers.add);
   }
-
-  if (ctx.proxyToServerRequestOptions) {
-    Object.keys(headersToBeAdded).forEach((key) => {
-      ctx.proxyToServerRequestOptions!.headers[key] = headersToBeAdded[key];
-    });
-
-    headersToBeDeleted.forEach((header) => {
-      delete ctx.proxyToServerRequestOptions!.headers[header];
-    });
+  if (apiMock.headers.remove && Array.isArray(apiMock.headers.remove)) {
+    apiMock.headers.remove.forEach((header) => delete headers[header]);
   }
 }
 
@@ -89,14 +67,15 @@ export function updateRequestBody(ctx: IContext, apiMock: ApiMock) {
     return;
   }
 
-  const requestBodyChunks: Array<Buffer> = [];
+  const requestBodyChunks: Buffer[] = [];
   ctx.onRequestData((ctx: IContext, chunk: Buffer, callback: OnRequestDataCallback) => {
     requestBodyChunks.push(chunk);
     callback(null, undefined);
   });
   ctx.onRequestEnd((ctx: IContext, callback: OnRequestDataCallback) => {
     const originalBody = Buffer.concat(requestBodyChunks).toString('utf-8');
-    ctx.proxyToServerRequest?.write(apiMock.postBody || originalBody);
+    const body = apiMock.postBody || originalBody;
+    ctx.proxyToServerRequest?.write(body);
     callback();
   });
 }
@@ -228,24 +207,11 @@ export function compileApiMock(mocks: Array<ApiMock>) {
 }
 
 function parseMockHeader(header?: HttpHeader) {
-  let add = {},
-    remove: string[] = [];
-
-  if (header) {
-    const parsedHeader = parseJson(header);
-    if (typeof parsedHeader === 'object') {
-      if (parsedHeader && parsedHeader.add) {
-        add = parsedHeader.add;
-      } else if (parsedHeader && parsedHeader.remove) {
-        remove = parsedHeader.remove;
-      } else {
-        add = parsedHeader;
-      }
-    }
-  }
+  if (!header) return { add: {}, remove: [] };
+  const parsedHeader = typeof header === 'string' ? parseJson(header) : header;
 
   return {
-    add,
-    remove,
+    add: parsedHeader?.add ?? {},
+    remove: parsedHeader?.remove ?? [],
   };
 }

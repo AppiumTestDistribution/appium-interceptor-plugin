@@ -1,43 +1,48 @@
 import ADB from 'appium-adb';
 import { Proxy } from '../proxy';
 
+type ADBInstance = ADB;
+type UDID = string;
+
+async function adbExecWithDevice(adb: ADBInstance, udid: UDID, args: string[]): Promise<string> {
+  return adb.adbExec(['-s', udid, ...args]);
+}
+
 export async function getDeviceProperty(
-  adbInstance: any,
-  udid: string,
+  adb: ADBInstance,
+  udid: UDID,
   prop: string
 ): Promise<string | undefined> {
   try {
-    return await adbInstance.adbExec(['-s', udid, 'shell', 'getprop', prop]);
-  } catch (error) {
-    throw new Error(`Error while getting device property "${prop}" for ${udid}. Error: ${error}`);
+    return await adbExecWithDevice(adb, udid, ['shell', 'getprop', prop]);
+  } catch (error: any) {
+    throw new Error(`Error getting device property "${prop}" for ${udid}: ${error.message}`);
   }
 }
 
-export async function isRealDevice(adb: ADB, deviceUDID: string) {
-  const property = await getDeviceProperty(adb, deviceUDID, 'ro.build.characteristics');
+export async function isRealDevice(adb: ADBInstance, udid: UDID): Promise<boolean> {
+  const property = await getDeviceProperty(adb, udid, 'ro.build.characteristics');
   return property !== 'emulator';
 }
 
 export async function configureWifiProxy(
-  adb: ADB,
-  deviceUDID: string,
-  isRealDevice: boolean,
+  adb: ADBInstance,
+  udid: UDID,
+  realDevice: boolean,
   proxy?: Proxy
-) {
+): Promise<string> {
   try {
-    const host = !proxy ? ':0' : `${proxy.getIp()}:${proxy.getPort()}`;
-    if (isRealDevice && proxy) {
-      await adb.adbExec([
-        '-s',
-        deviceUDID,
+    const host = proxy ? `${proxy.getIp()}:${proxy.getPort()}` : ':0';
+
+    if (realDevice && proxy) {
+      await adbExecWithDevice(adb, udid, [
         'reverse',
         `tcp:${proxy.getPort()}`,
         `tcp:${proxy.getPort()}`,
       ]);
     }
-    return await adb.adbExec([
-      '-s',
-      deviceUDID,
+
+    return await adbExecWithDevice(adb, udid, [
       'shell',
       'settings',
       'put',
@@ -45,7 +50,7 @@ export async function configureWifiProxy(
       'http_proxy',
       host,
     ]);
-  } catch (error) {
-    throw new Error(`Unable to set wifi proxy settings to device. ${error}`);
+  } catch (error: any) {
+    throw new Error(`Error setting wifi proxy for ${udid}: ${error.message}`);
   }
 }
