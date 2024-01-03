@@ -27,7 +27,7 @@ export async function configureWifiProxy(
   try {
     const host = !proxy ? ':0' : `${proxy.getIp()}:${proxy.getPort()}`;
     if (isRealDevice && proxy) {
-      return await adb.adbExec([
+      await adb.adbExec([
         '-s',
         deviceUDID,
         'reverse',

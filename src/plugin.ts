@@ -6,6 +6,7 @@ import _ from 'lodash';
 import { configureWifiProxy, isRealDevice } from './utils/adb';
 import { cleanUpProxyServer, setupProxyServer } from './utils/proxy';
 import proxyCache from './proxy-cache';
+
 export class AppiumInterceptorPlugin extends BasePlugin {
   constructor(name: string, cliArgs: CliArg) {
     super(name, cliArgs);
@@ -51,5 +52,17 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       await cleanUpProxyServer(proxy);
     }
     return next();
+  }
+
+  async onUnexpectedShutdown(driver: any, cause: any) {
+    const sessions = Object.keys(driver.sessions || {});
+    for (const sessionId of sessions) {
+      const proxy = proxyCache.get(sessionId);
+      if (proxy) {
+        const adb = driver.sessions[sessionId]?.adb;
+        await configureWifiProxy(adb, proxy.getDeviceUDID(), false);
+        await cleanUpProxyServer(proxy);
+      }
+    }
   }
 }
