@@ -1,14 +1,27 @@
 import { BasePlugin } from 'appium/plugin';
 import http from 'http';
 import { Application } from 'express';
-import { CliArg, ISessionCapability } from './types';
+import { CliArg, ISessionCapability, MockConfig } from './types';
 import _ from 'lodash';
 import { configureWifiProxy, isRealDevice } from './utils/adb';
-import { cleanUpProxyServer, setupProxyServer } from './utils/proxy';
+import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
 import proxyCache from './proxy-cache';
 import logger from './logger';
+import { validateMockConfig } from './schema';
 
 export class AppiumInterceptorPlugin extends BasePlugin {
+  static executeMethodMap = {
+    'interceptor: addMock': {
+      command: 'addMock',
+      params: { required: ['config'] },
+    },
+
+    'interceptor: removeMock': {
+      command: 'removeMock',
+      params: { required: ['id'] },
+    },
+  };
+
   constructor(name: string, cliArgs: CliArg) {
     super(name, cliArgs);
   }
@@ -65,34 +78,24 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     }
   }
 
-  static executeMethodMap = {
-    'interceptor: addMock': {
-      command: 'addMock',
-      params: { required: ['values'] },
-    },
-
-    'interceptor: removeMock': {
-      command: 'removeMock',
-      params: { required: ['id'] },
-    },
-
-  };
-
-  async addMock(next: any, driver: any, values: any) {
+  async addMock(next: any, driver: any, config: MockConfig) {
     const proxy = proxyCache.get(driver.sessionId);
     if (!proxy) {
       logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
     }
-    // @ts-ignore
-    return proxy.addMock(values);
+
+    sanitizeMockConfig(config);
+    return proxy?.addMock(config);
   }
 
   async removeMock(next: any, driver: any, id: any) {
     const proxy = proxyCache.get(driver.sessionId);
     if (!proxy) {
       logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
     }
-    // @ts-ignore
+
     proxy.removeMock(id);
   }
 

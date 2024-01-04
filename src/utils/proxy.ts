@@ -19,6 +19,8 @@ import { minimatch } from 'minimatch';
 import http from 'http';
 import jsonpath from 'jsonpath';
 import regexParser from 'regex-parser';
+import { validateMockConfig } from '../schema';
+import log from '../logger';
 
 const MOCK_BACKEND_HTML = `<html><head><title>Appium Mock</title></head>
 <body style="display:flex;flex-direction:column;align-items:center;justify-content:center">
@@ -82,8 +84,10 @@ export function updateRequestBody(ctx: IContext, mockConfig: MockConfig) {
     if (mockConfig.updateRequestBody) {
       postBody = processBody(mockConfig.updateRequestBody, originalBody);
     }
-    console.log('************* REQUEST BODY **************************');
-    console.log(postBody);
+    if (postBody) {
+      console.log('************* REQUEST BODY **************************');
+      console.log(postBody);
+    }
     ctx.proxyToServerRequest?.setHeader('Content-Length', Buffer.byteLength(postBody));
     ctx.proxyToServerRequest?.write(postBody);
     callback();
@@ -203,9 +207,14 @@ export function parseJson(obj: any) {
 export function matchUrl(pattern: UrlPattern, url: string) {
   let jsonOrStringUrl = parseRegex(pattern);
 
-  return jsonOrStringUrl instanceof RegExp
-    ? jsonOrStringUrl.test(url)
-    : minimatch(url, jsonOrStringUrl);
+  try {
+    return jsonOrStringUrl instanceof RegExp
+      ? jsonOrStringUrl.test(url)
+      : minimatch(url, jsonOrStringUrl);
+  } catch (err) {
+    log.error(`Error validaing url ${pattern} against url ${url}`);
+    return false;
+  }
 }
 
 export function matchHttpMethod(request: http.IncomingMessage, method: string | undefined) {
@@ -242,16 +251,6 @@ export function compileMockConfig(mocks: Array<MockConfig>) {
   return compiledMock;
 }
 
-function parseMockHeader(header?: HttpHeader) {
-  const parsedHeader = typeof header === 'string' ? parseJson(header) : header;
-  if (!parsedHeader || typeof parsedHeader !== 'object') return { add: {}, remove: [] };
-
-  return {
-    add: parsedHeader?.add ? parsedHeader.add : parsedHeader,
-    remove: parsedHeader?.remove ?? [],
-  };
-}
-
 export function updateUsingJsonPath(spec: JsonPathReplacer, body: string) {
   const parsedBody = parseJson(body);
   if (typeof parsedBody !== 'object') {
@@ -278,4 +277,40 @@ export function processBody(spec: UpdateBodySpec[], body: string) {
     }
     return body;
   }, body);
+}
+
+function parseHeaderConfig(header?: HttpHeader) {
+  const parsedHeader = typeof header === 'string' ? parseJson(header) : header;
+  if (!parsedHeader || typeof parsedHeader !== 'object') return { add: {}, remove: [] };
+
+  return {
+    add: parsedHeader?.add ? parsedHeader.add : parsedHeader,
+    remove: parsedHeader?.remove ?? [],
+  };
+}
+
+export function sanitizeMockConfig(config: MockConfig) {
+  const isValid = validateMockConfig(config);
+  if (!isValid) {
+    throw new Error('Invalid config provided for api mock');
+  }
+  config.headers = parseHeaderConfig(config.headers);
+  config.responseHeaders = parseHeaderConfig(config.headers);
+
+  /* Validate if the config has corrent RegExp */
+  [
+    '$.updateUrl[*].regexp',
+    '$.updateRequestBody[*].regexp',
+    '$.updateResponseBody[*].regexp',
+  ].forEach((regexNodePath) => {
+    const regexElement = jsonpath.query(config, regexNodePath);
+    return regexElement.forEach((ele) => {
+      const isValidRegExp = typeof ele === 'string' && !(parseRegex(ele) instanceof RegExp);
+      if (!isValidRegExp) {
+        throw new Error(`Invalid Regular expression ${ele} for field ${regexNodePath}`);
+      }
+    });
+  });
+
+  return config;
 }
