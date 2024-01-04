@@ -25,15 +25,10 @@ export type RegExpReplacer = {
 
 export type UpdateBodySpec = JsonPathReplacer | RegExpReplacer;
 
-export type PaternReplacer = {
-  pattern: string | RegExp;
-  replaceWith: string;
-};
-
-export interface MockConfig {
+export type MockConfig = {
   url: UrlPattern;
   method?: string;
-  updateUrl?: PaternReplacer[];
+  updateUrl?: RegExpReplacer[];
   headers?: HttpHeader;
   requestBody?: string;
   updateRequestBody?: UpdateBodySpec[];
@@ -41,4 +36,4 @@ export interface MockConfig {
   responseHeaders?: HttpHeader;
   responseBody?: string;
   updateResponseBody?: UpdateBodySpec[];
-}
+};

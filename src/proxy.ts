@@ -133,7 +133,7 @@ export class Proxy {
     updateRequestBody(ctx, mockConfig);
   }
 
-  private _updateClientResponse(ctx: IContext, mockConfig: MockConfig, callback: ErrorCallback) {
+  private _updateClientResponse(ctx: IContext, mockConfig: MockConfig, next: ErrorCallback) {
     if (mockConfig.statusCode && mockConfig.responseBody) {
       ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
       ctx.proxyToClientResponse.end(mockConfig.responseBody);
@@ -141,6 +141,6 @@ export class Proxy {
     }
 
     updateResponseBody(ctx, mockConfig);
-    callback();
+    next();
   }
 }

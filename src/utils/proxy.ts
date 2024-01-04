@@ -47,7 +47,7 @@ export function updateRequestUrl(ctx: IContext, mockConfig: MockConfig) {
 
   const updateUrlMatchers = _.castArray(mockConfig.updateUrl);
   const updatedUrlString = updateUrlMatchers.reduce((current, matcher) => {
-    return current.replace(parseRegex(matcher.pattern as string), matcher.replaceWith);
+    return current.replace(parseRegex(matcher.regexp as string), matcher.value);
   }, originalUrl.toString());
 
   const updatedUrl = new URL(updatedUrlString);
@@ -169,8 +169,8 @@ export function addDefaultMocks(proxy: Proxy) {
     url: '/api/users?.*',
     updateUrl: [
       {
-        pattern: new RegExp(/page=(\d)+/g),
-        replaceWith: 'page=2',
+        regexp: '/page=(\\d)+/g',
+        value: 'page=2',
       },
     ],
     updateResponseBody: [
@@ -243,11 +243,11 @@ export function compileMockConfig(mocks: Array<MockConfig>) {
 }
 
 function parseMockHeader(header?: HttpHeader) {
-  if (!header) return { add: {}, remove: [] };
   const parsedHeader = typeof header === 'string' ? parseJson(header) : header;
+  if (!parsedHeader || typeof parsedHeader !== 'object') return { add: {}, remove: [] };
 
   return {
-    add: parsedHeader?.add ?? {},
+    add: parsedHeader?.add ? parsedHeader.add : parsedHeader,
     remove: parsedHeader?.remove ?? [],
   };
 }
