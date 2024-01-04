@@ -62,10 +62,10 @@ export function updateRequestHeaders(ctx: IContext, mockConfig: MockConfig) {
   }
 
   const { headers } = ctx.proxyToServerRequestOptions;
-  if (mockConfig.headers.add) {
+  if (mockConfig.headers?.add) {
     Object.assign(headers, mockConfig.headers.add);
   }
-  if (mockConfig.headers.remove && Array.isArray(mockConfig.headers.remove)) {
+  if (mockConfig.headers?.remove && Array.isArray(mockConfig.headers?.remove)) {
     mockConfig.headers.remove.forEach((header: string) => delete headers[header]);
   }
 }

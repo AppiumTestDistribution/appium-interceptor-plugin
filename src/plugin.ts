@@ -6,6 +6,7 @@ import _ from 'lodash';
 import { configureWifiProxy, isRealDevice } from './utils/adb';
 import { cleanUpProxyServer, setupProxyServer } from './utils/proxy';
 import proxyCache from './proxy-cache';
+import logger from './logger';
 
 export class AppiumInterceptorPlugin extends BasePlugin {
   constructor(name: string, cliArgs: CliArg) {
@@ -62,5 +63,40 @@ export class AppiumInterceptorPlugin extends BasePlugin {
         await cleanUpProxyServer(proxy);
       }
     }
+  }
+
+  static executeMethodMap = {
+    'interceptor: addMock': {
+      command: 'addMock',
+      params: { required: ['values'] },
+    },
+
+    'interceptor: removeMock': {
+      command: 'removeMock',
+      params: { required: ['id'] },
+    },
+
+  };
+
+  async addMock(next: any, driver: any, values: any) {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+    }
+    // @ts-ignore
+    return proxy.addMock(values);
+  }
+
+  async removeMock(next: any, driver: any, id: any) {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+    }
+    // @ts-ignore
+    proxy.removeMock(id);
+  }
+
+  async execute(next: any, driver: any, script: any, args: any) {
+    return await this.executeMethod(next, driver, script, args);
   }
 }
