@@ -1,5 +1,12 @@
 import { IContext, OnRequestDataCallback } from 'http-mitm-proxy';
-import { ApiMock, HttpHeader, UrlPattern } from '../types';
+import {
+  MockConfig,
+  HttpHeader,
+  JsonPathReplacer,
+  RegExpReplacer,
+  UpdateBodySpec,
+  UrlPattern,
+} from '../types';
 import _ from 'lodash';
 import getPort from 'get-port';
 import { Proxy } from '../proxy';
@@ -8,13 +15,14 @@ import os from 'os';
 import path from 'path';
 import config from '../config';
 import fs from 'fs-extra';
-import RegexParser from 'regex-parser';
 import { minimatch } from 'minimatch';
 import http from 'http';
+import jsonpath from 'jsonpath';
+import regexParser from 'regex-parser';
 
 const MOCK_BACKEND_HTML = `<html><head><title>Appium Mock</title></head>
 <body style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-<h1>Hurray 🎉</h1>
+<h1>Hurray</h1>
 <p style="font-size:24px">Your device is successfully connected to appium interceptor plugin</p>
 <p style="font-size:24px">Download the certificate <a href="www.google.com">here</a></p>
 </body></html>`;
@@ -24,8 +32,8 @@ export function constructURLFromRequest(request: { protocol: string; path: strin
   return new URL(urlString);
 }
 
-export function updateRequestUrl(ctx: IContext, apiMock: ApiMock) {
-  if (!apiMock.updateUrl || !ctx.clientToProxyRequest || !ctx.proxyToServerRequestOptions) {
+export function updateRequestUrl(ctx: IContext, mockConfig: MockConfig) {
+  if (!mockConfig.updateUrl || !ctx.clientToProxyRequest || !ctx.proxyToServerRequestOptions) {
     return;
   }
 
@@ -37,7 +45,7 @@ export function updateRequestUrl(ctx: IContext, apiMock: ApiMock) {
     protocol,
   });
 
-  const updateUrlMatchers = _.castArray(apiMock.updateUrl);
+  const updateUrlMatchers = _.castArray(mockConfig.updateUrl);
   const updatedUrlString = updateUrlMatchers.reduce((current, matcher) => {
     return current.replace(parseRegex(matcher.pattern as string), matcher.replaceWith);
   }, originalUrl.toString());
@@ -48,25 +56,21 @@ export function updateRequestUrl(ctx: IContext, apiMock: ApiMock) {
   ctx.proxyToServerRequestOptions.port = updatedUrl.port || ctx.proxyToServerRequestOptions.port;
 }
 
-export function updateRequestHeaders(ctx: IContext, apiMock: ApiMock) {
-  if (!apiMock.headers || !ctx.proxyToServerRequestOptions) {
+export function updateRequestHeaders(ctx: IContext, mockConfig: MockConfig) {
+  if (!mockConfig.headers || !ctx.proxyToServerRequestOptions) {
     return;
   }
 
   const { headers } = ctx.proxyToServerRequestOptions;
-  if (apiMock.headers.add) {
-    Object.assign(headers, apiMock.headers.add);
+  if (mockConfig.headers.add) {
+    Object.assign(headers, mockConfig.headers.add);
   }
-  if (apiMock.headers.remove && Array.isArray(apiMock.headers.remove)) {
-    apiMock.headers.remove.forEach((header) => delete headers[header]);
+  if (mockConfig.headers.remove && Array.isArray(mockConfig.headers.remove)) {
+    mockConfig.headers.remove.forEach((header: string) => delete headers[header]);
   }
 }
 
-export function updateRequestBody(ctx: IContext, apiMock: ApiMock) {
-  if (!apiMock.postBody) {
-    return;
-  }
-
+export function updateRequestBody(ctx: IContext, mockConfig: MockConfig) {
   const requestBodyChunks: Buffer[] = [];
   ctx.onRequestData((ctx: IContext, chunk: Buffer, callback: OnRequestDataCallback) => {
     requestBodyChunks.push(chunk);
@@ -74,9 +78,37 @@ export function updateRequestBody(ctx: IContext, apiMock: ApiMock) {
   });
   ctx.onRequestEnd((ctx: IContext, callback: OnRequestDataCallback) => {
     const originalBody = Buffer.concat(requestBodyChunks).toString('utf-8');
-    const body = apiMock.postBody || originalBody;
-    ctx.proxyToServerRequest?.write(body);
+    let postBody = mockConfig.requestBody || originalBody;
+    if (mockConfig.updateRequestBody) {
+      postBody = processBody(mockConfig.updateRequestBody, originalBody);
+    }
+    console.log('************* REQUEST BODY **************************');
+    console.log(postBody);
+    ctx.proxyToServerRequest?.setHeader('Content-Length', Buffer.byteLength(postBody));
+    ctx.proxyToServerRequest?.write(postBody);
     callback();
+  });
+}
+
+export function updateResponseBody(ctx: IContext, mockConfig: MockConfig) {
+  const responseBodyChunks: Buffer[] = [];
+  ctx.onResponseData((ctx: IContext, chunk: Buffer, callback: OnRequestDataCallback) => {
+    responseBodyChunks.push(chunk);
+    return callback(null, undefined);
+  });
+  ctx.onResponseEnd((ctx: IContext, callback: OnRequestDataCallback) => {
+    const originalResponse = Buffer.concat(responseBodyChunks).toString('utf8');
+    let responseBody = mockConfig.responseBody || originalResponse;
+    //console.log(originalResponse);
+
+    if (mockConfig.statusCode) {
+      ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
+    }
+    if (mockConfig.updateResponseBody) {
+      responseBody = processBody(mockConfig.updateResponseBody, responseBody);
+    }
+    ctx.proxyToClientResponse.write(responseBody);
+    callback(null);
   });
 }
 
@@ -109,28 +141,52 @@ function prepareCertificate(sessionId: string) {
 
 export function parseRegex(matcherString: string) {
   try {
-    return RegexParser(matcherString);
+    return regexParser(matcherString);
   } catch (err) {
     return matcherString;
   }
 }
 
 export function addDefaultMocks(proxy: Proxy) {
+  // proxy.addMock({
+  //   url: '**/reqres.in/api/**',
+  //   statusCode: 400,
+  // });
+
   proxy.addMock({
-    url: '**/reqres.in/api/**',
-    statusCode: 400,
+    url: '**/api/login',
+    method: 'post',
+    updateRequestBody: [
+      {
+        jsonPath: '$.email',
+        value: 'invalidemail@reqres.in',
+      },
+    ],
   });
 
   proxy.addMock({
-    url: '**/api/users*?*',
-    updateUrl: {
-      pattern: new RegExp(/page=(\d)+/g),
-      replaceWith: 'page=9',
-    },
+    // url: '**/api/users*?*',
+    url: '/api/users?.*',
+    updateUrl: [
+      {
+        pattern: new RegExp(/page=(\d)+/g),
+        replaceWith: 'page=2',
+      },
+    ],
+    updateResponseBody: [
+      {
+        jsonPath: '$.data[?(/michael.*/.test(@.email))].first_name',
+        value: 'sudharsan',
+      },
+      {
+        jsonPath: '$.data[?(/michael.*/.test(@.email))].last_name',
+        value: 'selvaraj',
+      },
+    ],
   });
 
   proxy.addMock({
-    url: new RegExp(/appiumproxy.io/g),
+    url: '/appiumproxy.io/g',
     responseBody: MOCK_BACKEND_HTML,
     statusCode: 200,
   });
@@ -145,18 +201,11 @@ export function parseJson(obj: any) {
 }
 
 export function matchUrl(pattern: UrlPattern, url: string) {
-  let jsonOrStringUrl = parseJson(pattern);
-  if (typeof jsonOrStringUrl === 'string') {
-    jsonOrStringUrl = parseRegex(jsonOrStringUrl);
-    if (jsonOrStringUrl instanceof RegExp) {
-      return jsonOrStringUrl.test(url);
-    } else {
-      return minimatch(url, jsonOrStringUrl);
-    }
-  } else if (jsonOrStringUrl instanceof RegExp) {
-    return jsonOrStringUrl.test(url);
-  }
-  return false;
+  let jsonOrStringUrl = parseRegex(pattern);
+
+  return jsonOrStringUrl instanceof RegExp
+    ? jsonOrStringUrl.test(url)
+    : minimatch(url, jsonOrStringUrl);
 }
 
 export function matchHttpMethod(request: http.IncomingMessage, method: string | undefined) {
@@ -166,9 +215,10 @@ export function matchHttpMethod(request: http.IncomingMessage, method: string | 
   return request.method && request.method.toLowerCase() == method.toLowerCase();
 }
 
-export function compileApiMock(mocks: Array<ApiMock>) {
-  const compiledMock: ApiMock = {
+export function compileMockConfig(mocks: Array<MockConfig>) {
+  const compiledMock: MockConfig = {
     url: '',
+    updateUrl: [],
     headers: {
       add: {},
       remove: [],
@@ -177,31 +227,17 @@ export function compileApiMock(mocks: Array<ApiMock>) {
       add: {},
       remove: [],
     },
+    updateRequestBody: [],
+    updateResponseBody: [],
   };
 
-  mocks.forEach((mock) => {
-    const requestHeaders = parseMockHeader(mock.headers);
-    const responseHeaders = parseMockHeader(mock.responseHeaders);
-
-    _.merge(compiledMock.headers!.add, requestHeaders.add);
-    _.concat(compiledMock.headers!.remove, requestHeaders.remove);
-
-    _.merge(compiledMock.responseHeaders!.add, responseHeaders.add);
-    _.concat(compiledMock.responseHeaders!.remove, responseHeaders.remove);
-
-    if (mock.postBody) {
-      compiledMock.postBody = mock.postBody;
-    }
-    if (mock.responseBody) {
-      compiledMock.responseBody = mock.responseBody;
-    }
-    if (mock.statusCode) {
-      compiledMock.statusCode = mock.statusCode;
-    }
-    if (mock.updateUrl) {
-      compiledMock.updateUrl = mock.updateUrl;
-    }
-  });
+  mocks.reduce((finalMock, mock) => {
+    return _.mergeWith(finalMock, mock, (objValue, srcValue) => {
+      if (_.isArray(objValue)) {
+        return objValue.concat(srcValue);
+      }
+    });
+  }, compiledMock);
 
   return compiledMock;
 }
@@ -214,4 +250,32 @@ function parseMockHeader(header?: HttpHeader) {
     add: parsedHeader?.add ?? {},
     remove: parsedHeader?.remove ?? [],
   };
+}
+
+export function updateUsingJsonPath(spec: JsonPathReplacer, body: string) {
+  const parsedBody = parseJson(body);
+  if (typeof parsedBody !== 'object') {
+    return body;
+  }
+  const { jsonPath: path, value } = spec;
+
+  jsonpath.apply(parsedBody, path, (val) => value);
+
+  return JSON.stringify(parsedBody);
+}
+
+export function updateUsingRegExp(spec: RegExpReplacer, body: string) {
+  const { regexp, value } = spec;
+  return body.replace(new RegExp(regexp), value);
+}
+
+export function processBody(spec: UpdateBodySpec[], body: string) {
+  return spec.reduce((body: string, spec: UpdateBodySpec) => {
+    if (_.has(spec, 'jsonPath')) {
+      return updateUsingJsonPath(spec as JsonPathReplacer, body);
+    } else if (_.has(spec, 'regexp')) {
+      return updateUsingRegExp(spec as RegExpReplacer, body);
+    }
+    return body;
+  }, body);
 }

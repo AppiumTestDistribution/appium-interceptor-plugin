@@ -5,7 +5,7 @@ export type ISessionCapability = {
   alwaysMatch: any;
 };
 
-export type UrlPattern = string | RegExp;
+export type UrlPattern = string;
 export type HttpHeader =
   | Record<string, unknown>
   | {
@@ -13,31 +13,32 @@ export type HttpHeader =
       remove: string[];
     };
 
-export type HttpBody =
-  | string
-  | { contentType: string; body: string }
-  | PaternReplacer
-  | Array<PaternReplacer>;
+export type JsonPathReplacer = {
+  jsonPath: string;
+  value: string;
+};
+
+export type RegExpReplacer = {
+  regexp: string;
+  value: string;
+};
+
+export type UpdateBodySpec = JsonPathReplacer | RegExpReplacer;
 
 export type PaternReplacer = {
   pattern: string | RegExp;
   replaceWith: string;
 };
 
-export interface ApiMock {
+export interface MockConfig {
   url: UrlPattern;
   method?: string;
-  updateUrl?: PaternReplacer | Array<PaternReplacer>;
+  updateUrl?: PaternReplacer[];
   headers?: HttpHeader;
-  postBody?: HttpBody;
+  requestBody?: string;
+  updateRequestBody?: UpdateBodySpec[];
   statusCode?: number;
   responseHeaders?: HttpHeader;
-  responseBody?: HttpBody;
+  responseBody?: string;
+  updateResponseBody?: UpdateBodySpec[];
 }
-
-// string mockiD = driver.executeScript("intercept:addMock", {
-//   url:
-//   method:
-// })
-
-//mockiD

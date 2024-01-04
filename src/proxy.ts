@@ -1,24 +1,20 @@
-import { ApiMock } from './types';
-import {
-  Proxy as HttpProxy,
-  IContext,
-  IProxyOptions,
-  OnRequestDataCallback,
-  ErrorCallback,
-} from 'http-mitm-proxy';
+import { MockConfig } from './types';
+import { Proxy as HttpProxy, IContext, IProxyOptions, ErrorCallback } from 'http-mitm-proxy';
 import { v4 as uuid } from 'uuid';
 import http from 'http';
 import {
   addDefaultMocks,
-  compileApiMock,
+  compileMockConfig,
   constructURLFromRequest,
   matchHttpMethod,
   matchUrl,
   updateRequestBody,
   updateRequestHeaders,
   updateRequestUrl,
+  updateResponseBody,
 } from './utils/proxy';
-import BrMiddleware from './proxy-middlewares/br';
+import ResponseDecoder from './response-decoder';
+import { Mock } from './mock';
 
 export type ProxyOptions = {
   deviceUDID: string;
@@ -28,16 +24,9 @@ export type ProxyOptions = {
   ip: string;
 };
 
-const MOCK_BACKEND_HTML = `<html><head><title>Appium Mock</title></head>
-<body style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-<h1>Hurray 🎉</h1>
-<p style="font-size:24px">Your device is successfully connected to appium interceptor plugin</p>
-<p style="font-size:24px">Download the certificate <a href="www.google.com">here</a></p>
-</body></html>`;
-
 export class Proxy {
   private started: boolean = false;
-  private mocks: Map<string, ApiMock> = new Map();
+  private mocks: Map<string, Mock> = new Map();
   private httpProxy!: HttpProxy;
 
   constructor(private options: ProxyOptions) {
@@ -61,9 +50,9 @@ export class Proxy {
     return this.options.certificatePath;
   }
 
-  public addMock(apiMock: ApiMock) {
+  public addMock(mockConfig: MockConfig) {
     const id = uuid();
-    this.mocks.set(id, apiMock);
+    this.mocks.set(id, new Mock(id, mockConfig));
     return id;
   }
 
@@ -88,7 +77,7 @@ export class Proxy {
     this.httpProxy.onRequest(this._onMockApiRequest.bind(this));
 
     await new Promise((resolve) => {
-      this.httpProxy.listen(proxyOptions, () => {
+      this.httpProxy.listen({ ...proxyOptions, forceSNI: true }, () => {
         this.started = true;
         resolve(true);
       });
@@ -102,7 +91,7 @@ export class Proxy {
   private async _onMockApiRequest(ctx: IContext, next: ErrorCallback) {
     const matchedMocks = await this.getMatchingMock(ctx);
     if (matchedMocks.length) {
-      const compiledMock = compileApiMock(matchedMocks);
+      const compiledMock = compileMockConfig(matchedMocks);
       this.performMock(ctx, compiledMock, next);
     } else {
       next();
@@ -122,53 +111,36 @@ export class Proxy {
 
     const matchedMocks = [];
     for (let [id, mock] of this.mocks.entries()) {
-      if (matchUrl(mock.url, url) && matchHttpMethod(request, mock.method)) {
-        matchedMocks.push(mock);
+      const config = mock.getConfig();
+      if (matchUrl(config.url, url) && matchHttpMethod(request, config.method)) {
+        matchedMocks.push(config);
       }
     }
 
     return matchedMocks;
   }
 
-  private performMock(ctx: IContext, apiMock: ApiMock, callback: ErrorCallback) {
-    ctx.use(HttpProxy.gunzip);
-    ctx.use(BrMiddleware);
+  private performMock(ctx: IContext, mockConfig: MockConfig, callback: ErrorCallback) {
+    ctx.use(ResponseDecoder);
 
-    this._updateClientRequest(ctx, apiMock);
-    this._updateClientResponse(ctx, apiMock, callback);
+    this._updateClientRequest(ctx, mockConfig);
+    this._updateClientResponse(ctx, mockConfig, callback);
   }
 
-  private _updateClientRequest(ctx: IContext, apiMock: ApiMock) {
-    updateRequestUrl(ctx, apiMock);
-    updateRequestHeaders(ctx, apiMock);
-    updateRequestBody(ctx, apiMock);
+  private _updateClientRequest(ctx: IContext, mockConfig: MockConfig) {
+    updateRequestUrl(ctx, mockConfig);
+    updateRequestHeaders(ctx, mockConfig);
+    updateRequestBody(ctx, mockConfig);
   }
 
-  private _updateClientResponse(ctx: IContext, apiMock: ApiMock, callback: ErrorCallback) {
-    if (apiMock.statusCode && apiMock.responseBody) {
-      ctx.proxyToClientResponse.writeHead(apiMock.statusCode);
-      ctx.proxyToClientResponse.end(apiMock.responseBody);
+  private _updateClientResponse(ctx: IContext, mockConfig: MockConfig, callback: ErrorCallback) {
+    if (mockConfig.statusCode && mockConfig.responseBody) {
+      ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
+      ctx.proxyToClientResponse.end(mockConfig.responseBody);
       return;
     }
 
-    const responseBodyChunks: Array<Buffer> = [];
-    ctx.onResponseData((ctx: IContext, chunk: Buffer, callback: OnRequestDataCallback) => {
-      responseBodyChunks.push(chunk);
-      return callback(null, undefined);
-    });
-    ctx.onResponseEnd((ctx: IContext, callback: OnRequestDataCallback) => {
-      console.log(Buffer.concat(responseBodyChunks).toString('utf8'));
-      if (apiMock.statusCode) {
-        ctx.proxyToClientResponse.writeHead(apiMock.statusCode);
-      }
-      if (apiMock.responseBody) {
-        ctx.proxyToClientResponse.write(apiMock.responseBody);
-      } else {
-        ctx.proxyToClientResponse.write(Buffer.concat(responseBodyChunks).toString('utf8'));
-      }
-      callback(null);
-    });
-
+    updateResponseBody(ctx, mockConfig);
     callback();
   }
 }
