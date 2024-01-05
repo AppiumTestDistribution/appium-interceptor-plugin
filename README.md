@@ -6,7 +6,7 @@ This plugin uses mitmproxy
 ## Prerequisite
 
 1. Appium version 2.0
-2. Intercepting API requests from android requires CA certificate to be installed on to the device. Follow the instructions from [How to install CA certificate on android](./docs/certificate-installation.md) section and install the CA certificate.
+2. Intercepting API requests from android requires CA certificate to be installed on the device. Follow the instructions in [How to install CA certificate on android](./docs/certificate-installation.md) section and install the CA certificate.
 
 ## Installation - Server
 
@@ -24,9 +24,9 @@ The plugin will not be active unless turned on when invoking the Appium server:
 
 ## what does this plugin do?
 
-For every appium session, interceptor plugin will start a proxy server and points the device proxy setting to go through the proxy server. Mocking is disabled by default and it can be enable from the test by passing `appium:intercept : true` in the appium capability while creating a new appium session.
+For every appium session, interceptor plugin will start a proxy server and updates the device proxy settings to pass all network traffic to proxy server. Mocking is disabled by default and can be enabled from the test by passing `appium:intercept : true` in the desired capability while creating a new appium session.
 
-Please refer [commands](/docs/commands.md) sections for detailed usage.
+Please refer to the [commands](/docs/commands.md) sections for detailed usage.
 
 ## Supported Platforms
 
