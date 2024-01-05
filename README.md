@@ -38,7 +38,7 @@ Plugin will set proxy to the device and intercept the API response and mock the 
 5. Mocking partial response from server
 
 ### Usage
-Refer Examples [here](./test/plugin-test.js)
+Refer Examples [here](./test/plugin.spec.js)
 ## Build local
 `npm install`
 
