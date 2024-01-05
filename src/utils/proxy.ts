@@ -169,26 +169,26 @@ export function addDefaultMocks(proxy: Proxy) {
     ],
   });
 
-  proxy.addMock({
-    // url: '**/api/users*?*',
-    url: '/api/users?.*',
-    updateUrl: [
-      {
-        regexp: '/page=(\\d)+/g',
-        value: 'page=2',
-      },
-    ],
-    updateResponseBody: [
-      {
-        jsonPath: '$.data[?(/michael.*/.test(@.email))].first_name',
-        value: 'sudharsan',
-      },
-      {
-        jsonPath: '$.data[?(/michael.*/.test(@.email))].last_name',
-        value: 'selvaraj',
-      },
-    ],
-  });
+  // proxy.addMock({
+  //   // url: '**/api/users*?*',
+  //   // url: '/api/users?.*',
+  //   // updateUrl: [
+  //   //   {
+  //   //     regexp: '/page=(\\d)+/g',
+  //   //     value: 'page=2',
+  //   //   },
+  //   // ],
+  //   // updateResponseBody: [
+  //   //   {
+  //   //     jsonPath: '$.data[?(/michael.*/.test(@.email))].first_name',
+  //   //     value: 'sudharsan',
+  //   //   },
+  //   //   {
+  //   //     jsonPath: '$.data[?(/michael.*/.test(@.email))].last_name',
+  //   //     value: 'selvaraj',
+  //   //   },
+  //   // ],
+  // });
 
   proxy.addMock({
     url: '/appiumproxy.io/g',
@@ -306,6 +306,7 @@ export function sanitizeMockConfig(config: MockConfig) {
   ].forEach((regexNodePath) => {
     const regexElement = jsonpath.query(config, regexNodePath);
     return regexElement.forEach((ele) => {
+      console.log('00000', ele)
       const isValidRegExp = typeof ele === 'string' && !(parseRegex(ele) instanceof RegExp);
       if (!isValidRegExp) {
         throw new Error(`Invalid Regular expression ${ele} for field ${regexNodePath}`);
