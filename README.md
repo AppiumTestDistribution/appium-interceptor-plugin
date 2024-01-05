@@ -35,7 +35,7 @@ Please refer to the [commands](/docs/commands.md) sections for detailed usage.
 **Mocking support**
 
 1. Update outgoing request URL
-2. completely Replace or partially mofidy the request payload (POST Body)
+2. Fully Replace or partially modify the request payload (POST Body)
 3. Update the request headers
 4. Update the response headers
 5. Fully Replace or partially modify the response body
