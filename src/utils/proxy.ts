@@ -81,10 +81,6 @@ export function modifyRequestBody(ctx: IContext, mockConfig: MockConfig) {
     if (mockConfig.updateRequestBody) {
       postBody = processBody(mockConfig.updateRequestBody, originalBody);
     }
-    if (postBody) {
-      console.log('************* REQUEST BODY **************************');
-      console.log(postBody);
-    }
     ctx.proxyToServerRequest?.setHeader('Content-Length', Buffer.byteLength(postBody));
     ctx.proxyToServerRequest?.write(postBody);
     callback();
@@ -100,7 +96,6 @@ export function modifyResponseBody(ctx: IContext, mockConfig: MockConfig) {
   ctx.onResponseEnd((ctx: IContext, callback: OnRequestDataCallback) => {
     const originalResponse = Buffer.concat(responseBodyChunks).toString('utf8');
     let responseBody = mockConfig.responseBody || originalResponse;
-    //console.log(originalResponse);
 
     if (mockConfig.statusCode) {
       ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
