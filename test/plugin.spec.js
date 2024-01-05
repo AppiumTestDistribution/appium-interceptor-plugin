@@ -1,5 +1,6 @@
 import { remote } from 'webdriverio';
 import { API_DEMOS_APK_PATH as apidemosApp } from 'android-apidemos';
+import { expect } from 'chai';
 
 const APPIUM_HOST = '127.0.0.1';
 const APPIUM_PORT = 4723;
@@ -12,10 +13,9 @@ const WDIO_PARAMS = {
 };
 const capabilities = {
   platformName: 'Android',
-  'appium:automationName': 'espresso',
+  'appium:automationName': 'UIAutomator2',
   'appium:app': apidemosApp,
-  'appium:forceEspressoRebuild': false,
-  'appium:showGradleLog': true,
+  'appium:intercept': true,
 };
 let driver;
 describe('Plugin Test', () => {
@@ -24,9 +24,14 @@ describe('Plugin Test', () => {
   });
 
   it('Vertical swipe test', async () => {
-    await driver.$('~Animation');
+    const mockId = await driver.execute('interceptor: addMock', {
+      config: {
+        url: 'https://jsonplaceholder.typicode.com/todos/1',
+      },
+    })
+    expect(mockId).to.not.be.null
   });
   afterEach(async () => {
-    await driver.quit();
+    await driver.deleteSession();
   });
 });
