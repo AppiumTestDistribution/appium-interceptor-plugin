@@ -139,7 +139,7 @@ export async function setupProxyServer(
 export async function cleanUpProxyServer(proxy: Proxy) {
   await proxy.stop();
   // @ts-ignore
-  fs.rmdirSync(proxy.getCertificatePath(), { recursive: true, force: true });
+  fs.rmdirSync(proxy.certificatePath, { recursive: true, force: true });
 }
 
 function prepareCertificate(sessionId: string) {

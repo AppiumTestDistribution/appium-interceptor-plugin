@@ -60,7 +60,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     const proxy = proxyCache.get(sessionId);
     if (proxy) {
       const adb = driver.sessions[sessionId]?.adb;
-      await configureWifiProxy(adb, proxy.getDeviceUDID(), false);
+      await configureWifiProxy(adb, proxy.deviceUDID, false);
       await cleanUpProxyServer(proxy);
     }
     return next();
@@ -72,7 +72,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       const proxy = proxyCache.get(sessionId);
       if (proxy) {
         const adb = driver.sessions[sessionId]?.adb;
-        await configureWifiProxy(adb, proxy.getDeviceUDID(), false);
+        await configureWifiProxy(adb, proxy.deviceUDID, false);
         await cleanUpProxyServer(proxy);
       }
     }
