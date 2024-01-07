@@ -29,19 +29,23 @@ const MOCK_BACKEND_HTML = `<html><head><title>Appium Mock</title></head>
 <p style="font-size:24px">Download the certificate <a href="www.google.com">here</a></p>
 </body></html>`;
 
-export function constructURLFromRequest(request: { protocol: string; path: string; host: string }) {
+export function constructURLFromHttpRequest(request: {
+  protocol: string;
+  path: string;
+  host: string;
+}) {
   const urlString = `${request.protocol}${request?.host}${request.path}`;
   return new URL(urlString);
 }
 
-export function updateRequestUrl(ctx: IContext, mockConfig: MockConfig) {
+export function modifyRequestUrl(ctx: IContext, mockConfig: MockConfig) {
   if (!mockConfig.updateUrl || !ctx.clientToProxyRequest || !ctx.proxyToServerRequestOptions) {
     return;
   }
 
   const { headers, url } = ctx.clientToProxyRequest;
   const protocol = ctx.isSSL ? 'https://' : 'http://';
-  const originalUrl = constructURLFromRequest({
+  const originalUrl = constructURLFromHttpRequest({
     host: headers.host!,
     path: url!,
     protocol,
@@ -58,7 +62,7 @@ export function updateRequestUrl(ctx: IContext, mockConfig: MockConfig) {
   ctx.proxyToServerRequestOptions.port = updatedUrl.port || ctx.proxyToServerRequestOptions.port;
 }
 
-export function updateRequestHeaders(ctx: IContext, mockConfig: MockConfig) {
+export function modifyRequestHeaders(ctx: IContext, mockConfig: MockConfig) {
   if (!mockConfig.headers || !ctx.proxyToServerRequestOptions) {
     return;
   }
@@ -72,7 +76,7 @@ export function updateRequestHeaders(ctx: IContext, mockConfig: MockConfig) {
   }
 }
 
-export function updateRequestBody(ctx: IContext, mockConfig: MockConfig) {
+export function modifyRequestBody(ctx: IContext, mockConfig: MockConfig) {
   const requestBodyChunks: Buffer[] = [];
   ctx.onRequestData((ctx: IContext, chunk: Buffer, callback: OnRequestDataCallback) => {
     requestBodyChunks.push(chunk);
@@ -94,7 +98,7 @@ export function updateRequestBody(ctx: IContext, mockConfig: MockConfig) {
   });
 }
 
-export function updateResponseBody(ctx: IContext, mockConfig: MockConfig) {
+export function modifyResponseBody(ctx: IContext, mockConfig: MockConfig) {
   const responseBodyChunks: Buffer[] = [];
   ctx.onResponseData((ctx: IContext, chunk: Buffer, callback: OnRequestDataCallback) => {
     responseBodyChunks.push(chunk);
@@ -205,7 +209,7 @@ export function parseJson(obj: any) {
   }
 }
 
-export function matchUrl(pattern: UrlPattern, url: string) {
+export function doesUrlMatch(pattern: UrlPattern, url: string) {
   let jsonOrStringUrl = parseRegex(pattern);
 
   try {
@@ -218,7 +222,7 @@ export function matchUrl(pattern: UrlPattern, url: string) {
   }
 }
 
-export function matchHttpMethod(request: http.IncomingMessage, method: string | undefined) {
+export function doesHttpMethodMatch(request: http.IncomingMessage, method: string | undefined) {
   if (!method) {
     return true;
   }
@@ -299,20 +303,19 @@ export function sanitizeMockConfig(config: MockConfig) {
   config.responseHeaders = parseHeaderConfig(config.headers);
 
   /* Validate if the config has corrent RegExp */
-  [
+  const pathsToValidate = [
     '$.updateUrl[*].regexp',
     '$.updateRequestBody[*].regexp',
     '$.updateResponseBody[*].regexp',
-  ].forEach((regexNodePath) => {
-    const regexElement = jsonpath.query(config, regexNodePath);
-    return regexElement.forEach((ele) => {
-      console.log('00000', ele)
-      const isValidRegExp = typeof ele === 'string' && !(parseRegex(ele) instanceof RegExp);
-      if (!isValidRegExp) {
-        throw new Error(`Invalid Regular expression ${ele} for field ${regexNodePath}`);
+  ];
+  for (const regexNodePath of pathsToValidate) {
+    const regexElements: string[] = jsonpath.query(config, regexNodePath);
+    regexElements.forEach((regexp) => {
+      if (typeof regexp !== 'string' || !(parseRegex(regexp) instanceof RegExp)) {
+        throw new Error(`Invalid Regular expression ${regexp} for field ${regexNodePath}`);
       }
     });
-  });
+  }
 
   return config;
 }

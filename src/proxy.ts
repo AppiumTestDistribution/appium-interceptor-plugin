@@ -1,118 +1,120 @@
 import { MockConfig } from './types';
-import { Proxy as HttpProxy, IContext, IProxyOptions, ErrorCallback } from 'http-mitm-proxy';
+import { Proxy as HttpProxy, IContext, IProxyOptions } from 'http-mitm-proxy';
 import { v4 as uuid } from 'uuid';
-import http from 'http';
 import {
   addDefaultMocks,
   compileMockConfig,
-  constructURLFromRequest,
-  matchHttpMethod,
-  matchUrl,
-  updateRequestBody,
-  updateRequestHeaders,
-  updateRequestUrl,
-  updateResponseBody,
+  constructURLFromHttpRequest,
+  doesHttpMethodMatch,
+  doesUrlMatch,
+  modifyRequestBody,
+  modifyRequestHeaders,
+  modifyRequestUrl,
+  modifyResponseBody,
 } from './utils/proxy';
 import ResponseDecoder from './response-decoder';
 import { Mock } from './mock';
 
-export type ProxyOptions = {
+export interface ProxyOptions {
   deviceUDID: string;
   sessionId: string;
   certificatePath: string;
   port: number;
   ip: string;
-};
+}
 
 export class Proxy {
-  private started: boolean = false;
-  private mocks: Map<string, Mock> = new Map();
-  private httpProxy!: HttpProxy;
+  private _started = false;
+  private readonly mocks = new Map<string, Mock>();
+  private readonly httpProxy: HttpProxy;
 
-  constructor(private options: ProxyOptions) {
+  public isStarted(): boolean {
+    return this._started;
+  }
+
+  constructor(private readonly options: ProxyOptions) {
     this.httpProxy = new HttpProxy();
     addDefaultMocks(this);
   }
 
-  public getPort() {
+  public get port(): number {
     return this.options.port;
   }
 
-  public getIp() {
+  public get ip(): string {
     return this.options.ip;
   }
 
-  public getDeviceUDID() {
+  public get deviceUDID(): string {
     return this.options.deviceUDID;
   }
 
-  public getCertificatePath() {
+  public get certificatePath(): string {
     return this.options.certificatePath;
   }
 
-  public addMock(mockConfig: MockConfig) {
+  public async start(): Promise<boolean> {
+    if (this._started) return true;
+
+    const proxyOptions: IProxyOptions = {
+      port: this.port,
+      sslCaDir: this.certificatePath,
+      host: '::', // IPv6 any
+      forceSNI: true,
+    };
+
+    this.httpProxy.onRequest(this.handleMockApiRequest.bind(this));
+
+    await new Promise((resolve) => {
+      this.httpProxy.listen(proxyOptions, () => {
+        this._started = true;
+        resolve(true);
+      });
+    });
+
+    return true;
+  }
+
+  public async stop(): Promise<void> {
+    this.httpProxy.close();
+  }
+
+  public addMock(mockConfig: MockConfig): string {
     const id = uuid();
     this.mocks.set(id, new Mock(id, mockConfig));
     return id;
   }
 
-  public removeMock(id: string) {
+  public removeMock(id: string): void {
     this.mocks.delete(id);
   }
 
-  public isStarted() {
-    return this.started;
-  }
-
-  public async start() {
-    if (this.isStarted()) {
-      return this.isStarted();
-    }
-    const proxyOptions: IProxyOptions = {
-      port: this.options.port,
-      sslCaDir: this.options.certificatePath,
-      host: '::',
-    };
-
-    this.httpProxy.onRequest(this._onMockApiRequest.bind(this));
-
-    await new Promise((resolve) => {
-      this.httpProxy.listen({ ...proxyOptions, forceSNI: true }, () => {
-        this.started = true;
-        resolve(true);
-      });
-    });
-  }
-
-  public async stop() {
-    this.httpProxy.close();
-  }
-
-  private async _onMockApiRequest(ctx: IContext, next: ErrorCallback) {
-    const matchedMocks = await this.getMatchingMock(ctx);
+  private async handleMockApiRequest(ctx: IContext, next: () => void): Promise<void> {
+    const matchedMocks = await this.findMatchingMocks(ctx);
     if (matchedMocks.length) {
       const compiledMock = compileMockConfig(matchedMocks);
-      this.performMock(ctx, compiledMock, next);
+      this.performMockResponse(ctx, compiledMock, next);
     } else {
       next();
     }
   }
 
-  private async getMatchingMock(ctx: IContext) {
-    let request: http.IncomingMessage = ctx.clientToProxyRequest;
-    if (!request.headers?.host) {
+  private async findMatchingMocks(ctx: IContext): Promise<MockConfig[]> {
+    const request = ctx.clientToProxyRequest;
+    if (!request.headers?.host || !request.url) {
       return [];
     }
-    const url = constructURLFromRequest({
-      host: request.headers.host!,
-      path: request.url!,
+
+    const url = constructURLFromHttpRequest({
+      host: request.headers.host,
+      path: request.url,
       protocol: ctx.isSSL ? 'https://' : 'http://',
     }).toString();
 
-    const matchedMocks = [];
-    for (let [id, mock] of this.mocks.entries()) {
+    const matchedMocks: MockConfig[] = [];
+    for (const mock of this.mocks.values()) {
       const config = mock.getConfig();
-      if (matchUrl(config.url, url) && matchHttpMethod(request, config.method)) {
+      if (doesUrlMatch(config.url, url) && doesHttpMethodMatch(request, config.method)) {
         matchedMocks.push(config);
       }
     }
@@ -120,27 +122,26 @@ export class Proxy {
     return matchedMocks;
   }
 
-  private performMock(ctx: IContext, mockConfig: MockConfig, callback: ErrorCallback) {
+  private performMockResponse(ctx: IContext, mockConfig: MockConfig, next: () => void): void {
     ctx.use(ResponseDecoder);
 
-    this._updateClientRequest(ctx, mockConfig);
-    this._updateClientResponse(ctx, mockConfig, callback);
+    this.modifyClientRequest(ctx, mockConfig);
+    this.modifyClientResponse(ctx, mockConfig, next);
   }
 
-  private _updateClientRequest(ctx: IContext, mockConfig: MockConfig) {
-    updateRequestUrl(ctx, mockConfig);
-    updateRequestHeaders(ctx, mockConfig);
-    updateRequestBody(ctx, mockConfig);
+  private modifyClientRequest(ctx: IContext, mockConfig: MockConfig): void {
+    modifyRequestUrl(ctx, mockConfig);
+    modifyRequestHeaders(ctx, mockConfig);
+    modifyRequestBody(ctx, mockConfig);
   }
 
-  private _updateClientResponse(ctx: IContext, mockConfig: MockConfig, next: ErrorCallback) {
+  private modifyClientResponse(ctx: IContext, mockConfig: MockConfig, next: () => void): void {
     if (mockConfig.statusCode && mockConfig.responseBody) {
       ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
       ctx.proxyToClientResponse.end(mockConfig.responseBody);
-      return;
+    } else {
+      modifyResponseBody(ctx, mockConfig);
+      next();
     }
-
-    updateResponseBody(ctx, mockConfig);
-    next();
   }
 }
