@@ -290,7 +290,7 @@ export function sanitizeMockConfig(config: MockConfig) {
     throw new Error('Invalid config provided for api mock');
   }
   config.headers = parseHeaderConfig(config.headers);
-  config.responseHeaders = parseHeaderConfig(config.headers);
+  config.responseHeaders = parseHeaderConfig(config.responseHeaders);
 
   /* Validate if the config has corrent RegExp */
   const pathsToValidate = [
