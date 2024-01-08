@@ -50,3 +50,7 @@ Refer Examples [here](./test/plugin.spec.js)
 `npm install`
 
 `npm run build`
+
+## Credits
+
+A special thanks to creators and maintainers of [node-http-mitm-proxy](https://github.com/joeferner/node-http-mitm-proxy). Their efforts have laid the foundation for the capabilities embedded in this plugin.
