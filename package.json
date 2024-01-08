@@ -1,6 +1,6 @@
 {
   "name": "appium-interceptor",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Appium 2.0 plugin to mock api calls for android apps",
   "main": "./lib/index.js",
   "scripts": {
@@ -104,7 +104,6 @@
     "axios": "^0.27.0",
     "better-ajv-errors": "^1.2.0",
     "enquirer": "^2.4.1",
-    "exit-hook": "^4.0.0",
     "get-port": "^5.1.1",
     "http-mitm-proxy": "^1.1.0",
     "ip": "^1.1.8",
