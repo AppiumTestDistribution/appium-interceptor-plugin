@@ -1,8 +1,8 @@
 import ADB from 'appium-adb';
 import { Proxy } from '../proxy';
 
-type ADBInstance = ADB;
-type UDID = string;
+export type ADBInstance = ADB;
+export type UDID = string;
 
 async function adbExecWithDevice(adb: ADBInstance, udid: UDID, args: string[]): Promise<string> {
   return adb.adbExec(['-s', udid, ...args]);
@@ -49,4 +49,16 @@ export async function configureWifiProxy(
   } catch (error: any) {
     throw new Error(`Error setting wifi proxy for ${udid}: ${error.message}`);
   }
+}
+
+export async function openUrl(adb: ADBInstance, udid: UDID, url: string) {
+  await adbExecWithDevice(adb, udid, [
+    'shell',
+    'am',
+    'start',
+    '-a',
+    'android.intent.action.VIEW',
+    '-d',
+    url,
+  ]);
 }
