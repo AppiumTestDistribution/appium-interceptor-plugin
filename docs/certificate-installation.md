@@ -19,7 +19,7 @@
 5. Install the plugin by running the command 
 
     ```shell
-    appium plugin install --source=npm appium-interceptor-plugin
+    appium plugin install --source=npm appium-interceptor
     ```
 6. To Make sure your setup is working connect your android device/emulator to your machine and run the below command
     

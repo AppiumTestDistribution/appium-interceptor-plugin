@@ -13,7 +13,7 @@ This plugin uses mitmproxy
 Install the plugin using Appium's plugin CLI, either as a named plugin or via NPM:
 
 ```shell
-appium plugin install --source=npm appium-interceptor-plugin
+appium plugin install --source=npm appium-interceptor
 ```
 
 ## Activation
