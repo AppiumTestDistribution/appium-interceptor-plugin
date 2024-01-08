@@ -22,13 +22,6 @@ import regexParser from 'regex-parser';
 import { validateMockConfig } from '../schema';
 import log from '../logger';
 
-const MOCK_BACKEND_HTML = `<html><head><title>Appium Mock</title></head>
-<body style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-<h1>Hurray</h1>
-<p style="font-size:24px">Your device is successfully connected to appium interceptor plugin</p>
-<p style="font-size:24px">Download the certificate <a href="www.google.com">here</a></p>
-</body></html>`;
-
 export function constructURLFromHttpRequest(request: {
   protocol: string;
   path: string;
@@ -161,18 +154,16 @@ export function addDefaultMocks(proxy: Proxy) {
   //   url: '**/reqres.in/api/**',
   //   statusCode: 400,
   // });
-
-  proxy.addMock({
-    url: '**/api/login',
-    method: 'post',
-    updateRequestBody: [
-      {
-        jsonPath: '$.email',
-        value: 'invalidemail@reqres.in',
-      },
-    ],
-  });
-
+  // proxy.addMock({
+  //   url: '**/api/login',
+  //   method: 'post',
+  //   updateRequestBody: [
+  //     {
+  //       jsonPath: '$.email',
+  //       value: 'invalidemail@reqres.in',
+  //     },
+  //   ],
+  // });
   // proxy.addMock({
   //   // url: '**/api/users*?*',
   //   // url: '/api/users?.*',
@@ -193,12 +184,11 @@ export function addDefaultMocks(proxy: Proxy) {
   //   //   },
   //   // ],
   // });
-
-  proxy.addMock({
-    url: '/appiumproxy.io/g',
-    responseBody: MOCK_BACKEND_HTML,
-    statusCode: 200,
-  });
+  // proxy.addMock({
+  //   url: '/appiumproxy.io/g',
+  //   responseBody: MOCK_BACKEND_HTML,
+  //   statusCode: 200,
+  // });
 }
 
 export function parseJson(obj: any) {

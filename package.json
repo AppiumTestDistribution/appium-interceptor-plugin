@@ -1,6 +1,6 @@
 {
   "name": "appium-interceptor",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Appium 2.0 plugin to mock api calls for android apps",
   "main": "./lib/index.js",
   "scripts": {
@@ -43,6 +43,7 @@
     "@types/lodash": "^4.14.170",
     "@types/mocha": "^8.2.2",
     "@types/node": "^15.6.1",
+    "@types/yargs": "^17.0.32",
     "android-apidemos": "^4.1.1",
     "appium-espresso-driver": "^2.25.3",
     "appium-uiautomator2-driver": "^2.29.5",
@@ -72,6 +73,9 @@
       "properties": {},
       "title": "Appium interceptor plugin",
       "type": "object"
+    },
+    "scripts": {
+      "test-connection": "./lib/scripts/test-connection.js"
     }
   },
   "engines": {
@@ -99,6 +103,7 @@
     "appium-adb": "^11.0.9",
     "axios": "^0.27.0",
     "better-ajv-errors": "^1.2.0",
+    "enquirer": "^2.4.1",
     "get-port": "^5.1.1",
     "http-mitm-proxy": "^1.1.0",
     "ip": "^1.1.8",
@@ -106,6 +111,7 @@
     "lodash": "^4.17.21",
     "minimatch": "^9.0.3",
     "regex-parser": "^2.3.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "yargs": "^17.7.2"
   }
 }
