@@ -94,7 +94,8 @@
     }
   },
   "files": [
-    "lib"
+    "lib",
+    "certificate"
   ],
   "dependencies": {
     "@appium/support": "^4.1.11",
