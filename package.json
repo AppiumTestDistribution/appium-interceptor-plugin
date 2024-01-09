@@ -1,6 +1,6 @@
 {
   "name": "appium-interceptor",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.4",
   "description": "Appium 2.0 plugin to mock api calls for android apps",
   "main": "./lib/index.js",
   "scripts": {
@@ -53,7 +53,6 @@
     "eslint-config-prettier": "^8.1.0",
     "eslint-plugin-import": "^2.8.0",
     "eslint-plugin-prettier": "^3.0.1",
-    "fs-extra": "^11.2.0",
     "husky": "^6.0.0",
     "lint-staged": "^11.0.0",
     "mocha": "^8.3.2",
@@ -112,6 +111,7 @@
     "minimatch": "^9.0.3",
     "regex-parser": "^2.3.0",
     "uuid": "^9.0.1",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.2",
+    "fs-extra": "^11.2.0"
   }
 }
