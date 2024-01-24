@@ -45,6 +45,12 @@ Please refer to the [commands](/docs/commands.md) sections for detailed usage.
 
 Refer Examples [here](./test/plugin.spec.js)
 
+## Troubleshooting
+
+In certain instances where the session terminates abruptly, the device proxy state may persist without being cleared, leading to a non-functional network connection. To rectify this issue and reset the device proxy state, execute the following adb command.
+
+`adb shell settings put global http_proxy :0` 
+
 ## Build local
 
 `npm install`
