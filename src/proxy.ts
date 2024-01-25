@@ -1,4 +1,4 @@
-import { MockConfig } from './types';
+import { MockConfig, RequestInfo, SniffConfig } from './types';
 import { Proxy as HttpProxy, IContext, IProxyOptions } from 'http-mitm-proxy';
 import { v4 as uuid } from 'uuid';
 import {
@@ -15,6 +15,8 @@ import {
 import ResponseDecoder from './response-decoder';
 import { Mock } from './mock';
 import { RequestInterceptor } from './interceptor';
+import { ApiSniffer } from './api-sniffer';
+import _ from 'lodash';
 
 export interface ProxyOptions {
   deviceUDID: string;
@@ -27,6 +29,8 @@ export interface ProxyOptions {
 export class Proxy {
   private _started = false;
   private readonly mocks = new Map<string, Mock>();
+  private readonly sniffers = new Map<string, ApiSniffer>();
+
   private readonly httpProxy: HttpProxy;
 
   public isStarted(): boolean {
@@ -66,9 +70,9 @@ export class Proxy {
 
     this.httpProxy.onRequest(
       RequestInterceptor((requestData: any) => {
-        // console.log('****** REQUEST **********');
-        // console.log(JSON.stringify(requestData, null, 2));
-        // console.log('****************************');
+        for (const sniffer of this.sniffers.values()) {
+          sniffer.onApiRequest(requestData);
+        }
       })
     );
     this.httpProxy.onRequest(this.handleMockApiRequest.bind(this));
@@ -97,6 +101,33 @@ export class Proxy {
     this.mocks.delete(id);
   }
 
+  public enableMock(id: string): void {
+    this.mocks.get(id)?.setEnableStatus(true);
+  }
+
+  public disableMock(id: string): void {
+    this.mocks.get(id)?.setEnableStatus(false);
+  }
+
+  public addSniffer(sniffConfg: SniffConfig): string {
+    const id = uuid();
+    this.sniffers.set(id, new ApiSniffer(id, sniffConfg));
+    return id;
+  }
+
+  public removeSniffer(id?: string): RequestInfo[] {
+    const _sniffers = [...this.sniffers.values()];
+    if (id && !_.isNil(this.sniffers.get(id))) {
+      _sniffers.push(this.sniffers.get(id)!);
+    }
+    const apiRequests = _sniffers.reduce((acc, sniffer) => {
+      acc.push(...sniffer.getRequests());
+      return acc;
+    }, [] as RequestInfo[]);
+    _sniffers.forEach((sniffer) => this.sniffers.delete(sniffer.getId()));
+    return apiRequests;
+  }
+
   private async handleMockApiRequest(ctx: IContext, next: () => void): Promise<void> {
     const matchedMocks = await this.findMatchingMocks(ctx);
     if (matchedMocks.length) {
@@ -122,7 +153,11 @@ export class Proxy {
     const matchedMocks: MockConfig[] = [];
     for (const mock of this.mocks.values()) {
       const config = mock.getConfig();
-      if (doesUrlMatch(config.url, url) && doesHttpMethodMatch(request, config.method)) {
+      if (
+        mock.isEnabled() &&
+        doesUrlMatch(config.url, url) &&
+        doesHttpMethodMatch(request, config.method)
+      ) {
         matchedMocks.push(config);
       }
     }

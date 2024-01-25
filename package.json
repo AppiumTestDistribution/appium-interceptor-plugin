@@ -13,7 +13,7 @@
     "uninstall": "export APPIUM_HOME=/tmp/some-temp-dir && (appium plugin uninstall appium-interceptor || exit 0)",
     "install-plugin": "export APPIUM_HOME=/tmp/some-temp-dir && npm run build && appium plugin install --source=local $(pwd)",
     "reinstall-plugin": "export APPIUM_HOME=/tmp/some-temp-dir && (appium plugin uninstall appium-interceptor || exit 0) && npm run install-plugin",
-    "run-server": "export APPIUM_HOME=/tmp/some-temp-dir && appium server -ka 800 --use-plugins=appium-interceptor -pa /wd/hub "
+    "run-server": "export APPIUM_HOME=/tmp/some-temp-dir && appium server -ka 800 --use-plugins=appium-interceptor -pa /wd/hub"
   },
   "contributors": [
     {
