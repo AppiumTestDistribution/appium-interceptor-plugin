@@ -1,13 +1,12 @@
 import { BasePlugin } from 'appium/plugin';
 import http from 'http';
 import { Application } from 'express';
-import { CliArg, ISessionCapability, MockConfig } from './types';
+import { CliArg, ISessionCapability, MockConfig, SniffConfig } from './types';
 import _ from 'lodash';
 import { configureWifiProxy, isRealDevice } from './utils/adb';
 import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
 import proxyCache from './proxy-cache';
 import logger from './logger';
-import { validateMockConfig } from './schema';
 
 export class AppiumInterceptorPlugin extends BasePlugin {
   static executeMethodMap = {
@@ -19,6 +18,26 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     'interceptor: removeMock': {
       command: 'removeMock',
       params: { required: ['id'] },
+    },
+
+    'interceptor: disableMock': {
+      command: 'disableMock',
+      params: { required: ['id'] },
+    },
+
+    'interceptor: enableMock': {
+      command: 'enableMock',
+      params: { required: ['id'] },
+    },
+
+    'interceptor: startListening': {
+      command: 'startListening',
+      params: { optional: ['config'] },
+    },
+
+    'interceptor: stopListening': {
+      command: 'stopListening',
+      params: { optional: ['id'] },
     },
   };
 
@@ -97,6 +116,46 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     }
 
     proxy.removeMock(id);
+  }
+
+  async disableMock(next: any, driver: any, id: any) {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+
+    proxy.disableMock(id);
+  }
+
+  async enableMock(next: any, driver: any, id: any) {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+
+    proxy.enableMock(id);
+  }
+
+  async startListening(next: any, driver: any, config: SniffConfig) {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+
+    return proxy?.addSniffer(config);
+  }
+
+  async stopListening(next: any, driver: any, id: any) {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+
+    return proxy.removeSniffer(id);
   }
 
   async execute(next: any, driver: any, script: any, args: any) {

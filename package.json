@@ -1,6 +1,6 @@
 {
   "name": "appium-interceptor",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0-beta.6",
   "description": "Appium 2.0 plugin to mock api calls for android apps",
   "main": "./lib/index.js",
   "scripts": {
@@ -13,7 +13,7 @@
     "uninstall": "export APPIUM_HOME=/tmp/some-temp-dir && (appium plugin uninstall appium-interceptor || exit 0)",
     "install-plugin": "export APPIUM_HOME=/tmp/some-temp-dir && npm run build && appium plugin install --source=local $(pwd)",
     "reinstall-plugin": "export APPIUM_HOME=/tmp/some-temp-dir && (appium plugin uninstall appium-interceptor || exit 0) && npm run install-plugin",
-    "run-server": "export APPIUM_HOME=/tmp/some-temp-dir && appium server -ka 800 --use-plugins=appium-interceptor -pa /wd/hub "
+    "run-server": "export APPIUM_HOME=/tmp/some-temp-dir && appium server -ka 800 --use-plugins=appium-interceptor -pa /wd/hub"
   },
   "contributors": [
     {
@@ -110,6 +110,7 @@
     "jsonpath": "^1.1.1",
     "lodash": "^4.17.21",
     "minimatch": "^9.0.3",
+    "parse-headers": "^2.0.5",
     "regex-parser": "^2.3.0",
     "uuid": "^9.0.1",
     "yargs": "^17.7.2",

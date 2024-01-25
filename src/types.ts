@@ -37,3 +37,18 @@ export type MockConfig = {
   responseBody?: string;
   updateResponseBody?: UpdateBodySpec[];
 };
+
+export type SniffConfig = {
+  include?: Array<{ url: UrlPattern }>;
+  exclude?: Array<{ url: UrlPattern }>;
+};
+
+export type RequestInfo = {
+  url: string;
+  method: string;
+  requestBody: any;
+  statusCode: number;
+  requestHeaders: Record<string, string | string[]>;
+  responseBody: any;
+  responseHeaders: Record<string, string | string[]>;
+};
