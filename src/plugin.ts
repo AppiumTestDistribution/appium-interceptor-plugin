@@ -157,6 +157,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       throw new Error('Proxy is not active for current session');
     }
 
+    log.info(`Stopping listener with id: ${id}`);
     return proxy.removeSniffer(id);
   }
 
