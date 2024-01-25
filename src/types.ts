@@ -36,6 +36,7 @@ export type MockConfig = {
   responseHeaders?: HttpHeader;
   responseBody?: string;
   updateResponseBody?: UpdateBodySpec[];
+  delay?: number;
 };
 
 export type SniffConfig = {

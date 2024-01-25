@@ -11,6 +11,8 @@ import {
   modifyRequestHeaders,
   modifyRequestUrl,
   modifyResponseBody,
+  parseJson,
+  sleep,
 } from './utils/proxy';
 import ResponseDecoder from './response-decoder';
 import { Mock } from './mock';
@@ -111,7 +113,8 @@ export class Proxy {
 
   public addSniffer(sniffConfg: SniffConfig): string {
     const id = uuid();
-    this.sniffers.set(id, new ApiSniffer(id, sniffConfg));
+    const parsedConfig = !sniffConfg ? {} : parseJson(sniffConfg);
+    this.sniffers.set(id, new ApiSniffer(id, parsedConfig));
     return id;
   }
 
@@ -132,7 +135,7 @@ export class Proxy {
     const matchedMocks = await this.findMatchingMocks(ctx);
     if (matchedMocks.length) {
       const compiledMock = compileMockConfig(matchedMocks);
-      this.performMockResponse(ctx, compiledMock, next);
+      this.applyMockToRequest(ctx, compiledMock, next);
     } else {
       next();
     }
@@ -165,9 +168,11 @@ export class Proxy {
     return matchedMocks;
   }
 
-  private performMockResponse(ctx: IContext, mockConfig: MockConfig, next: () => void): void {
+  private async applyMockToRequest(ctx: IContext, mockConfig: MockConfig, next: () => void) {
     ctx.use(ResponseDecoder);
-
+    if (mockConfig.delay) {
+      await sleep(mockConfig.delay);
+    }
     this.modifyClientRequest(ctx, mockConfig);
     this.modifyClientResponse(ctx, mockConfig, next);
   }
@@ -178,7 +183,7 @@ export class Proxy {
     modifyRequestBody(ctx, mockConfig);
   }
 
-  private modifyClientResponse(ctx: IContext, mockConfig: MockConfig, next: () => void): void {
+  private async modifyClientResponse(ctx: IContext, mockConfig: MockConfig, next: () => void) {
     if (mockConfig.statusCode && mockConfig.responseBody) {
       ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
       ctx.proxyToClientResponse.end(mockConfig.responseBody);

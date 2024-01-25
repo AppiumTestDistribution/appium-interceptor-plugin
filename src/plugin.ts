@@ -7,6 +7,7 @@ import { configureWifiProxy, isRealDevice } from './utils/adb';
 import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
 import proxyCache from './proxy-cache';
 import logger from './logger';
+import log from './logger';
 
 export class AppiumInterceptorPlugin extends BasePlugin {
   static executeMethodMap = {
@@ -145,6 +146,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       throw new Error('Proxy is not active for current session');
     }
 
+    log.info(`Adding listener with config ${config}`);
     return proxy?.addSniffer(config);
   }
 
