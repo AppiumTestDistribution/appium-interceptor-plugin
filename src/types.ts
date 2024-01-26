@@ -53,3 +53,11 @@ export type RequestInfo = {
   responseBody: any;
   responseHeaders: Record<string, string | string[]>;
 };
+
+export type Device = {
+  udid: string;
+  isReal: boolean;
+  sessionId?: string;
+};
+
+export type EventConsumer<T> = (args: T) => void | Promise<void>;

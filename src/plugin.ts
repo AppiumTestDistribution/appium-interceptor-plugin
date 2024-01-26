@@ -147,7 +147,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     }
 
     log.info(`Adding listener with config ${config}`);
-    return proxy?.addSniffer(config);
+    return proxy?.addSniffer(config).getId();
   }
 
   async stopListening(next: any, driver: any, id: any) {

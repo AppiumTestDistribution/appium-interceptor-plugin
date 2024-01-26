@@ -103,21 +103,27 @@
   ],
   "dependencies": {
     "@appium/support": "^4.1.11",
+    "@devicefarmer/adbkit": "^3.2.6",
     "ajv": "^6.12.6",
     "appium-adb": "^11.0.9",
     "axios": "^0.27.0",
     "better-ajv-errors": "^1.2.0",
+    "body-parser": "^1.20.2",
     "enquirer": "^2.4.1",
+    "eventemitter2": "^6.4.9",
+    "express": "^4.18.2",
+    "fs-extra": "^11.2.0",
     "get-port": "^5.1.1",
     "http-mitm-proxy": "^1.1.0",
     "ip": "^1.1.8",
     "jsonpath": "^1.1.1",
     "lodash": "^4.17.21",
     "minimatch": "^9.0.3",
+    "open": "^10.0.3",
     "parse-headers": "^2.0.5",
     "regex-parser": "^2.3.0",
+    "socket.io": "^4.7.4",
     "uuid": "^9.0.1",
-    "yargs": "^17.7.2",
-    "fs-extra": "^11.2.0"
+    "yargs": "^17.7.2"
   }
 }

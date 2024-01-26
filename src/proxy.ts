@@ -111,11 +111,12 @@ export class Proxy {
     this.mocks.get(id)?.setEnableStatus(false);
   }
 
-  public addSniffer(sniffConfg: SniffConfig): string {
+  public addSniffer(sniffConfg: SniffConfig) {
     const id = uuid();
     const parsedConfig = !sniffConfg ? {} : parseJson(sniffConfg);
-    this.sniffers.set(id, new ApiSniffer(id, parsedConfig));
-    return id;
+    const sniffer = new ApiSniffer(id, parsedConfig);
+    this.sniffers.set(id, sniffer);
+    return sniffer;
   }
 
   public removeSniffer(id?: string): RequestInfo[] {

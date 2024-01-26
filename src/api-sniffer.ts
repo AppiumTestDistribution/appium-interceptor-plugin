@@ -1,10 +1,13 @@
+import { EventEmitter } from 'events';
 import { RequestInfo, SniffConfig } from './types';
 import { doesUrlMatch } from './utils/proxy';
 
-export class ApiSniffer {
+export class ApiSniffer extends EventEmitter {
   private readonly requests: RequestInfo[] = [];
 
-  constructor(private id: string, private config: SniffConfig) {}
+  constructor(private id: string, private config: SniffConfig) {
+    super();
+  }
 
   getId() {
     return this.id;
@@ -13,7 +16,12 @@ export class ApiSniffer {
   onApiRequest(request: RequestInfo) {
     if (this.doesRequestMatchesConfig(request)) {
       this.requests.push(request);
+      this.notify(request);
     }
+  }
+
+  private notify(request: RequestInfo) {
+    this.emit('request', request);
   }
 
   getRequests() {
