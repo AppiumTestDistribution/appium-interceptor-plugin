@@ -19,6 +19,7 @@ import { Mock } from './mock';
 import { RequestInterceptor } from './interceptor';
 import { ApiSniffer } from './api-sniffer';
 import _ from 'lodash';
+import logger from './logger';
 
 export interface ProxyOptions {
   deviceUDID: string;
@@ -79,6 +80,10 @@ export class Proxy {
     );
     this.httpProxy.onRequest(this.handleMockApiRequest.bind(this));
 
+    this.httpProxy.onError((context, error, errorType) => {
+      logger.error(`${errorType}: ${error}`);
+    });
+
     await new Promise((resolve) => {
       this.httpProxy.listen(proxyOptions, () => {
         this._started = true;
@@ -111,9 +116,9 @@ export class Proxy {
     this.mocks.get(id)?.setEnableStatus(false);
   }
 
-  public addSniffer(sniffConfg: SniffConfig): string {
+  public addSniffer(sniffConfig: SniffConfig): string {
     const id = uuid();
-    const parsedConfig = !sniffConfg ? {} : parseJson(sniffConfg);
+    const parsedConfig = !sniffConfig ? {} : parseJson(sniffConfig);
     this.sniffers.set(id, new ApiSniffer(id, parsedConfig));
     return id;
   }

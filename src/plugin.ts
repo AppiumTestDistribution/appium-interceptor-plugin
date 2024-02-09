@@ -1,7 +1,7 @@
 import { BasePlugin } from 'appium/plugin';
 import http from 'http';
 import { Application } from 'express';
-import { CliArg, ISessionCapability, MockConfig, SniffConfig } from './types';
+import { CliArg, ISessionCapability, MockConfig, RequestInfo, SniffConfig } from './types';
 import _ from 'lodash';
 import { configureWifiProxy, isRealDevice } from './utils/adb';
 import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
@@ -139,7 +139,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     proxy.enableMock(id);
   }
 
-  async startListening(next: any, driver: any, config: SniffConfig) {
+  async startListening(next: any, driver: any, config: SniffConfig): Promise<string> {
     const proxy = proxyCache.get(driver.sessionId);
     if (!proxy) {
       logger.error('Proxy is not running');
@@ -150,7 +150,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     return proxy?.addSniffer(config);
   }
 
-  async stopListening(next: any, driver: any, id: any) {
+  async stopListening(next: any, driver: any, id: any): Promise<RequestInfo[]> {
     const proxy = proxyCache.get(driver.sessionId);
     if (!proxy) {
       logger.error('Proxy is not running');

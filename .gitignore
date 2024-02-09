@@ -2,3 +2,4 @@ node_modules
 lib/
 .idea
 .history
+.DS_Store

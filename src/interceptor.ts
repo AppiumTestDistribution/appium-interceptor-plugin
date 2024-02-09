@@ -29,9 +29,19 @@ function RequestInterceptor(requestCompletionCallback: (value: any) => void) {
   return function (ctx: IContext, callback: ErrorCallback) {
     ctx.use(responseDecoder);
     const requestData = {} as any;
+    const requestBodyDataChunks: Buffer[] = [];
+
+    // Get request body from http-mitm-proxy
+    // more info: https://github.com/joeferner/node-http-mitm-proxy/blob/master/README.md#proxyonrequestendfn-or-ctxonrequestendfn
+    ctx.onRequestData(function (ctx, chunk, callback) {
+      requestBodyDataChunks.push(chunk);
+      return callback(null, chunk);
+    });
+
     ctx.onRequestEnd((ctx, callback) => {
       readBodyFromStream(ctx.proxyToServerRequest, (requestBody) => {
-        requestData['requestBody'] = requestBody;
+        const requestBodyString = Buffer.concat(requestBodyDataChunks).toString('utf8');
+        requestData['requestBody'] = requestBody ? requestBody : requestBodyString;
         requestData['requestHeaders'] = ctx.proxyToServerRequest?.getHeaders();
       });
       callback();
