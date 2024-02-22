@@ -42,6 +42,11 @@ Add a new mock specification for intercepting and updating the request. The comm
 
 #### Example:
 
+
+***Note:*** Below example uses wedriver.io javascript client. For Java client you need to use `((JavascriptExecutor) driver).executeScript()` for executing commands instead of `driver.execute()`
+
+
+
 ```javascript
  const authorizationMock = await driver.execute("interceptor: addMock", [{
     config: {
