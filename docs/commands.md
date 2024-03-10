@@ -251,3 +251,43 @@ stopListening command will retunrs an array of network details in the below JSON
 ]
 ```
 
+### Java Example
+```
+ public static void main(String[] args) {
+        JSONObject customObject = new JSONObject();
+        customObject.put("url","/api/users?.*");
+        customObject.put("responseBody","{\n" +
+                "  \"page\": 2,\n" +
+                "  \"per_page\": 6,\n" +
+                "  \"total\": 12,\n" +
+                "  \"total_pages\": 2,\n" +
+                "  \"data\": [\n" +
+                "    {\n" +
+                "      \"id\": 7,\n" +
+                "      \"email\": \"michael.test@reqres.in\",\n" +
+                "      \"first_name\": \"Michael\",\n" +
+                "      \"last_name\": \"Lawson\",\n" +
+                "      \"avatar\": \"https://reqres.in/img/faces/7-image.jpg\"\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+        JSONObject parentJson = new JSONObject();
+        parentJson.put("config", customObject);
+        DesiredCapabilities capabilities = new DesiredCapabilities();
+        capabilities.setCapability("platformName", "android");
+        capabilities.setCapability("app","./test_app_mitm_proxy (1).apk");
+        capabilities.setCapability("automationName","uiautomator2");
+        capabilities.setCapability("intercept", true);
+        AppiumDriver appiumDriver = null;
+        try {
+            appiumDriver = new AndroidDriver(new URL("http://127.0.0.1:4723/wd/hub"),capabilities);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+        appiumDriver.executeScript("interceptor: addMock",new JSONObject(parentJson));
+        appiumDriver.findElement(By.xpath("//android.widget.TextView[contains(@text,'List')]")).click();
+        appiumDriver.quit();
+    }
+```
+
+
