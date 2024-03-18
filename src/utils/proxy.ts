@@ -53,6 +53,7 @@ export function modifyRequestUrl(ctx: IContext, mockConfig: MockConfig) {
   ctx.proxyToServerRequestOptions.host = updatedUrl.hostname;
   ctx.proxyToServerRequestOptions.path = `${updatedUrl.pathname}${updatedUrl.search}`;
   ctx.proxyToServerRequestOptions.port = updatedUrl.port || ctx.proxyToServerRequestOptions.port;
+  ctx.proxyToServerRequestOptions.headers.host=updatedUrl.hostname;
 }
 
 export function modifyRequestHeaders(ctx: IContext, mockConfig: MockConfig) {
