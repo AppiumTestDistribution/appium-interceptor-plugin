@@ -270,7 +270,7 @@ config.put("responseBody","{\n" +
                         "    }\n" +
                         "  ]\n" +
                         "}");
-((JavascriptExecutor)DriverManager.getDriver()).executeScript("interceptor: addMock",config);
+((JavascriptExecutor)DriverManager.getDriver()).executeScript("interceptor: addMock", new HashMap(){{put("config", config); }});
 driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'List')]")).click();
 ```
 
