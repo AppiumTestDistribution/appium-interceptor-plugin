@@ -68,6 +68,10 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     const adb = driver.sessions[sessionId]?.adb;
 
     if (interceptFlag && platformName.toLowerCase().trim() === 'android') {
+      if(!adb) {
+        log.info(`Unable to find adb instance from session ${sessionId}. So skipping api interception.`);
+        return response;
+      }
       const realDevice = await isRealDevice(adb, deviceUDID);
       const proxy = await setupProxyServer(sessionId, deviceUDID, realDevice);
       await configureWifiProxy(adb, deviceUDID, realDevice, proxy);
