@@ -4,7 +4,6 @@
   "description": "Appium 2.0 plugin to mock api calls for android apps",
   "main": "./lib/index.js",
   "types": "./lib/types/index.d.ts",
-  
   "scripts": {
     "build": "npx tsc",
     "test": "mocha --require ts-node/register -p test/plugin.spec.js --exit --timeout 260000",
