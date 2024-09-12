@@ -104,6 +104,7 @@
   ],
   "dependencies": {
     "@appium/support": "^4.1.11",
+    "queue-typescript": "^1.0.1",
     "ajv": "^6.12.6",
     "appium-adb": "^11.0.9",
     "axios": "^0.27.0",

@@ -1,4 +1,4 @@
-import { MockConfig, RequestInfo, SniffConfig } from './types';
+import { MockConfig, RecordConfig, RequestInfo, SniffConfig } from './types';
 import { Proxy as HttpProxy, IContext, IProxyOptions } from 'http-mitm-proxy';
 import { v4 as uuid } from 'uuid';
 import {
@@ -20,6 +20,7 @@ import { RequestInterceptor } from './interceptor';
 import { ApiSniffer } from './api-sniffer';
 import _ from 'lodash';
 import logger from './logger';
+import { RecordingManager } from './recording-manager';
 
 export interface ProxyOptions {
   deviceUDID: string;
@@ -35,6 +36,7 @@ export class Proxy {
   private readonly sniffers = new Map<string, ApiSniffer>();
 
   private readonly httpProxy: HttpProxy;
+  private readonly recordingManager: RecordingManager;
 
   public isStarted(): boolean {
     return this._started;
@@ -42,7 +44,12 @@ export class Proxy {
 
   constructor(private readonly options: ProxyOptions) {
     this.httpProxy = new HttpProxy();
+    this.recordingManager = new RecordingManager(options);
     addDefaultMocks(this);
+  }
+
+  public getRecordingManager(): RecordingManager {
+    return this.recordingManager;
   }
 
   public get port(): number {
@@ -79,6 +86,7 @@ export class Proxy {
       })
     );
     this.httpProxy.onRequest(this.handleMockApiRequest.bind(this));
+    this.httpProxy.onRequest(this.recordingManager.handleRecordingApiRequest.bind(this));
 
     this.httpProxy.onError((context, error, errorType) => {
       logger.error(`${errorType}: ${error}`);

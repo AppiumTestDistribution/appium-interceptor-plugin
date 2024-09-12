@@ -1,7 +1,7 @@
 import { BasePlugin } from 'appium/plugin';
 import http from 'http';
 import { Application } from 'express';
-import { CliArg, ISessionCapability, MockConfig, RequestInfo, SniffConfig } from './types';
+import { CliArg, ISessionCapability, MockConfig, RecordConfig, RequestInfo, SimulationConfig, SniffConfig } from './types';
 import _ from 'lodash';
 import { configureWifiProxy, isRealDevice } from './utils/adb';
 import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
@@ -39,6 +39,21 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     'interceptor: stopListening': {
       command: 'stopListening',
       params: { optional: ['id'] },
+    },
+
+    'interceptor: startRecording': {
+      command: 'startRecording',
+      params: { optional: ['config'] },
+    },
+
+    'interceptor: stopRecording': {
+      command: 'startRecording',
+      params: { optional: ['id'] },
+    },
+
+    'interceptor: simulateTraffic': {
+      command: 'simulateTraffic',
+      params: { required: ['simulationConfig'] },
     },
   };
 
@@ -163,6 +178,33 @@ export class AppiumInterceptorPlugin extends BasePlugin {
 
     log.info(`Stopping listener with id: ${id}`);
     return proxy.removeSniffer(id);
+  }
+
+  async startRecording(next: any, driver: any, config: SniffConfig): Promise<string> {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+
+    log.info(`Adding listener with config ${config}`);
+    return proxy?.getRecordingManager().addRecordingSniffer(config);
+  }
+
+  async stopRecording(next: any, driver: any, id: any): Promise<RequestInfo[]> {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+
+    log.info(`Stopping listener with id: ${id}`);
+    return proxy.getRecordingManager().getCapturedTraffic(id);
+  }
+
+  async simulateTraffic(next:any, driver:any, simulationConfig: SimulationConfig) {
+    const proxy = proxyCache.get(driver.sessionId);
+    return proxy?.getRecordingManager().startSimulation(simulationConfig);
   }
 
   async execute(next: any, driver: any, script: any, args: any) {
