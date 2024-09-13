@@ -7,8 +7,8 @@ export type ISessionCapability = {
   alwaysMatch: any;
 };
 
-export enum SimulationStrategy {
-  RECYCLE = 'RECYCLE',
+export enum ReplayStrategy {
+  CIRCULAR = 'CIRCULAR',
   DEFAULT = 'DEFAULT'
 }
 
@@ -53,9 +53,9 @@ export type RecordConfig = BaseConfig & {
   responseBody?: Queue<string>;
 };
 
-export type SimulationConfig = {
+export type ReplayConfig = {
   recordings: RecordConfig[];
-  simulationStrategy?: SimulationStrategy;
+  replayStrategy?: ReplayStrategy;
 };
 
 export type SniffConfig = {

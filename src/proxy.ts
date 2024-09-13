@@ -19,7 +19,7 @@ import { Mock } from './mock';
 import { RequestInterceptor } from './interceptor';
 import { ApiSniffer } from './api-sniffer';
 import _ from 'lodash';
-import logger from './logger';
+import log from './logger';
 import { RecordingManager } from './recording-manager';
 
 export interface ProxyOptions {
@@ -70,6 +70,7 @@ export class Proxy {
 
   public async start(): Promise<boolean> {
     if (this._started) return true;
+    log.info(`starting proxy server...`);
 
     const proxyOptions: IProxyOptions = {
       port: this.port,
@@ -80,6 +81,7 @@ export class Proxy {
 
     this.httpProxy.onRequest(
       RequestInterceptor((requestData: any) => {
+        log.info(`intercepting requests.....!!!!`);
         for (const sniffer of this.sniffers.values()) {
           sniffer.onApiRequest(requestData);
         }
@@ -89,7 +91,7 @@ export class Proxy {
     this.httpProxy.onRequest(this.recordingManager.handleRecordingApiRequest.bind(this));
 
     this.httpProxy.onError((context, error, errorType) => {
-      logger.error(`${errorType}: ${error}`);
+      log.error(`${errorType}: ${error}`);
     });
 
     await new Promise((resolve) => {
@@ -127,11 +129,12 @@ export class Proxy {
   public addSniffer(sniffConfig: SniffConfig): string {
     const id = uuid();
     const parsedConfig = !sniffConfig ? {} : parseJson(sniffConfig);
+    log.info(`parsed sniff config is ${parsedConfig}`);
     this.sniffers.set(id, new ApiSniffer(id, parsedConfig));
     return id;
   }
 
-  public removeSniffer(id?: string): RequestInfo[] {
+    public removeSniffer(id?: string): RequestInfo[] {
     const _sniffers = [...this.sniffers.values()];
     if (id && !_.isNil(this.sniffers.get(id))) {
       _sniffers.push(this.sniffers.get(id)!);
@@ -146,6 +149,7 @@ export class Proxy {
 
   private async handleMockApiRequest(ctx: IContext, next: () => void): Promise<void> {
     const matchedMocks = await this.findMatchingMocks(ctx);
+    log.info("COMING HEREEEE.....!!!!");
     if (matchedMocks.length) {
       const compiledMock = compileMockConfig(matchedMocks);
       this.applyMockToRequest(ctx, compiledMock, next);
@@ -165,6 +169,8 @@ export class Proxy {
       path: request.url,
       protocol: ctx.isSSL ? 'https://' : 'http://',
     }).toString();
+
+    log.info("Url coming is: ",url);
 
     const matchedMocks: MockConfig[] = [];
     for (const mock of this.mocks.values()) {

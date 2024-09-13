@@ -3,6 +3,7 @@ import stream from 'stream';
 import { constructURLFromHttpRequest } from './utils/proxy';
 import responseDecoder from './response-decoder';
 import parseHeader from 'parse-headers';
+import log from './logger';
 
 function readBodyFromStream(writable: stream.Writable | undefined, callback: (value: any) => void) {
   if (!writable) {
@@ -61,6 +62,7 @@ function RequestInterceptor(requestCompletionCallback: (value: any) => void) {
       requestData['responseBody'] = response;
       requestData['responseHeaders'] = responseHeaders;
       requestData['statusCode'] = ctx.proxyToClientResponse.statusCode;
+      log.info("COMING HERE IN REQUESTINTERCEPTOR")
 
       requestCompletionCallback(requestData);
     });
