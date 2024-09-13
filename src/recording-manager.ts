@@ -66,7 +66,8 @@ export class RecordingManager {
 
     recordConfigs.forEach(recordConfig => {
         const responseBody : Queue<string> = new Queue<string>();
-        const id = `${this.options.deviceUDID}_${recordConfig.url}_${recordConfig.method?.toLowerCase()}`;
+        const url = new URL(recordConfig.url);
+        const id = `${this.options.deviceUDID}_${url.pathname}_${recordConfig.method?.toLowerCase()}`;
 
         if (recordConfig.responseBody && recordConfig.responseBody.length > 0) {
           for (const response of recordConfig.responseBody) {
@@ -74,12 +75,12 @@ export class RecordingManager {
           }
         }
         recordConfig.responseBody = responseBody;
+        log.info(`setting records to map for url: ${recordConfig.url}`);
         this.records.set(id, new RecordedMock(id, recordConfig));
     })
   }
 
   public async handleRecordingApiRequest(ctx: IContext, next: () => void): Promise<void> {
-    log.info(`handling record requests for ctx ${ctx}`);
     const matchedRecords = await this.findMatchingRecords(ctx);
     if (matchedRecords.length) {
       matchedRecords.forEach(matchedRecord => {
@@ -90,7 +91,7 @@ export class RecordingManager {
     }
   }
 
-  private async findMatchingRecords(ctx: IContext): Promise<RecordConfig[]> {
+  public async findMatchingRecords(ctx: IContext): Promise<RecordConfig[]> {
     const request = ctx.clientToProxyRequest;
     if (!request.headers?.host || !request.url) {
       return [];
@@ -104,11 +105,16 @@ export class RecordingManager {
 
     const matchedRecords: RecordConfig[] = [];
     const id = `${this.options.deviceUDID}_${url.pathname}_${request.method?.toLowerCase()}`;
+    log.info(`finding matching mock for url: ${url}`);
+    log.info(`Does mock exists in map: ${this.records.has(id)} for id: ${id}`);
 
     if (this.records.has(id)) {
-        const record = this.records.get(id);
-        const recordConfig = record?.getConfig();
-        if (recordConfig) matchedRecords.push(recordConfig);
+      const record = this.records.get(id);
+      const recordConfig = record?.getConfig();
+      if (recordConfig) {
+        log.info(`Mock found for url: ${url.pathname}`)
+        matchedRecords.push(recordConfig);
+      }
     } else {
       for (const record of this.records.values()) {
         const recordConfig = record?.getConfig();
@@ -149,8 +155,10 @@ export class RecordingManager {
       if (this.records.has(id) && recordConfig.responseBody.length <= 0) {
         this.records.delete(id);
       }
+      log.info(`returning requests from proxy server.. !!`);
     } else {
-      modifyResponseBody(ctx, recordConfig);
+      log.info(`trying to return from backend in record`);
+      // modifyResponseBody(ctx, recordConfig);
       next();
     }
   }

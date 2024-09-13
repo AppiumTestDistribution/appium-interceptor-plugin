@@ -32,6 +32,7 @@ export interface ProxyOptions {
 
 export class Proxy {
   private _started = false;
+  private _replayStarted = false;
   private readonly mocks = new Map<string, Mock>();
   private readonly sniffers = new Map<string, ApiSniffer>();
 
@@ -40,6 +41,14 @@ export class Proxy {
 
   public isStarted(): boolean {
     return this._started;
+  }
+
+  public isReplayStarted(): boolean {
+    return this._replayStarted;
+  }
+
+  public startReplay(): void {
+    this._replayStarted = true;
   }
 
   constructor(private readonly options: ProxyOptions) {
@@ -81,14 +90,13 @@ export class Proxy {
 
     this.httpProxy.onRequest(
       RequestInterceptor((requestData: any) => {
-        log.info(`intercepting requests.....!!!!`);
         for (const sniffer of this.sniffers.values()) {
           sniffer.onApiRequest(requestData);
         }
       })
     );
     this.httpProxy.onRequest(this.handleMockApiRequest.bind(this));
-    this.httpProxy.onRequest(this.recordingManager.handleRecordingApiRequest.bind(this.recordingManager));
+    // this.httpProxy.onRequest(this.recordingManager.handleRecordingApiRequest.bind(this.recordingManager));
 
     this.httpProxy.onError((context, error, errorType) => {
       log.error(`${errorType}: ${error}`);
@@ -156,16 +164,22 @@ export class Proxy {
     }
 
   private async handleMockApiRequest(ctx: IContext, next: () => void): Promise<void> {
-    const matchedMocks = await this.findMatchingMocks(ctx);
-    if (matchedMocks.length) {
-      const compiledMock = compileMockConfig(matchedMocks);
-      this.applyMockToRequest(ctx, compiledMock, next);
-    } else {
-      next();
+    if (this.isReplayStarted()) {
+      this.recordingManager.handleRecordingApiRequest(ctx, next);
+    } else if (!this.isReplayStarted()) {
+      const matchedMocks = await this.findMatchingMocks(ctx);
+      if (matchedMocks.length) {
+        const compiledMock = compileMockConfig(matchedMocks);
+        this.applyMockToRequest(ctx, compiledMock, next);
+      }
+      else {
+        next();
+      }
     }
   }
 
   private async findMatchingMocks(ctx: IContext): Promise<MockConfig[]> {
+    log.info(`coming here in finding mockss..`);
     const request = ctx.clientToProxyRequest;
     if (!request.headers?.host || !request.url) {
       return [];
@@ -214,6 +228,7 @@ export class Proxy {
       ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
       ctx.proxyToClientResponse.end(mockConfig.responseBody);
     } else {
+      log.info(`trying to return from backend in mock`);
       modifyResponseBody(ctx, mockConfig);
       next();
     }

@@ -53,7 +53,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
 
     'interceptor: replayTraffic': {
       command: 'replayTraffic',
-      params: { required: ['simulationConfig'] },
+      params: { required: ['replayConfig'] },
     },
   };
 
@@ -203,9 +203,15 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     return proxy.removeSniffer(true, id);
   }
 
-  async replayTraffic(next:any, driver:any, simulationConfig: ReplayConfig) {
+  async replayTraffic(next:any, driver:any, replayConfig: ReplayConfig) {
     const proxy = proxyCache.get(driver.sessionId);
-    return proxy?.getRecordingManager().startTrafficReplay(simulationConfig);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+    log.info('Starting replay traffic');
+    proxy.startReplay();
+    return proxy.getRecordingManager().startTrafficReplay(replayConfig);
   }
 
   async execute(next: any, driver: any, script: any, args: any) {
