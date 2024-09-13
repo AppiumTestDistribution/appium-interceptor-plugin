@@ -4,7 +4,7 @@ import fs from 'fs';
 
 const APPIUM_HOST = '127.0.0.1';
 const APPIUM_PORT = 4723;
-const APK_PATH = '/Users/anikmukh/github/appium-interceptor-plugin/assets/test_app_mitm_proxy.apk';
+const APK_PATH = path.join(__dirname, '..', 'assets', 'test_app_mitm_proxy.apk');
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
