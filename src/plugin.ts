@@ -167,7 +167,6 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     }
 
     log.info(`Adding listener with config ${config}`);
-    log.info(`coming here`);
     return proxy?.addSniffer(config);
   }
 
@@ -179,7 +178,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     }
 
     log.info(`Stopping listener with id: ${id}`);
-    return proxy.removeSniffer(id);
+    return proxy.removeSniffer(false, id);
   }
 
   async startRecording(next: any, driver: any, config: SniffConfig): Promise<string> {
@@ -189,8 +188,8 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       throw new Error('Proxy is not active for current session');
     }
 
-    log.info(`Starting recording with config ${config}`);
-    return proxy?.getRecordingManager().addRecordingSniffer(config);
+    log.info(`Adding listener with config ${config}`);
+    return proxy?.addSniffer(config);
   }
 
   async stopRecording(next: any, driver: any, id: any): Promise<RecordConfig[]> {
@@ -201,7 +200,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     }
 
     log.info(`Stopping recording with id: ${id}`);
-    return proxy.getRecordingManager().getCapturedTraffic(id);
+    return proxy.removeSniffer(true, id);
   }
 
   async replayTraffic(next:any, driver:any, simulationConfig: ReplayConfig) {

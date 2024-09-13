@@ -1,10 +1,10 @@
 import { remote } from 'webdriverio';
-import { expect } from 'chai';
+import path from 'path';
 import fs from 'fs';
 
 const APPIUM_HOST = '127.0.0.1';
 const APPIUM_PORT = 4723;
-const APK_PATH = '/Users/anikmukh/StudioProjects/user_management_app/build/app/outputs/flutter-apk/app-debug.apk';
+const APK_PATH = './assets/test_app_mitm_proxy.apk';
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -26,38 +26,33 @@ const wdOpts = {
 let driver;
 
 describe('Different APK Plugin Test', function() {
-  this.timeout(30000); // Extend timeout if necessary
+  this.timeout(60000); // Extend timeout if necessary
 
   beforeEach(async function() {
     driver = await remote(wdOpts);
   });
 
   it('Should handle multiple clicks and start/stop recording', async function() {
-    await sleep(5000);
     
-    await driver.execute("interceptor: startListening", {
-      config: {
-        include: {
-          url: "/api/users?.*/g"
-        }
-      }
-    });    
+    await driver.execute("interceptor: startRecording");   
+    await sleep(2000); 
     
-    const el1 = await driver.$('//android.widget.Button[@content-desc="Get User List"]');
-    await el1.click();
+    // Loop 5 times from 0 to 4
+    for (let i = 0; i < 2; i++) {
+      console.log(`Click iteration: ${i + 1}`);
+      
+      // Perform a click action on the button
+      const element = await driver.$('//android.widget.TextView[@text="Get User List"]');
+      await element.click();
+      await sleep(1000); // Wait between clicks if necessary
+    }
     
-    await sleep(2000);
-    
-    const el2 = await driver.$('//android.widget.Button[@content-desc="Back"]');
-    await el2.click();
-    
-    const recordedData = await driver.execute('interceptor: stopListening');
-    // const jsonString = JSON.stringify(recordedData, null, 2);
-    console.log(recordedData);
+    const recordedData = await driver.execute('interceptor: stopRecording');
+    const jsonString = JSON.stringify(recordedData, null, 2);
+    // console.log(recordedData);
 
     // Write the JSON string to a file
-    // fs.writeFileSync('./recordedData.json', jsonString, 'utf8');
-    
+    fs.writeFileSync('./recordedData.json', jsonString, 'utf8');
   });
 
   afterEach(async function() {

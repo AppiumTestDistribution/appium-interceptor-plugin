@@ -1,6 +1,5 @@
 import { remote } from 'webdriverio';
 import { expect } from 'chai';
-import path from 'path';
 
 const APPIUM_HOST = '127.0.0.1';
 const APPIUM_PORT = 4723;
@@ -14,7 +13,7 @@ const WDIO_PARAMS = {
 const capabilities = {
   platformName: 'Android',
   'appium:automationName': 'UIAutomator2',
-  'appium:app': '/Users/anikmukh/github/appium-interceptor-plugin/assets/test_app_mitm_proxy.apk',
+  'appium:app': './assets/test_app_mitm_proxy.apk',
   'appium:intercept': true,
 };
 let driver;

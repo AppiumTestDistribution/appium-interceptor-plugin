@@ -62,7 +62,6 @@ function RequestInterceptor(requestCompletionCallback: (value: any) => void) {
       requestData['responseBody'] = response;
       requestData['responseHeaders'] = responseHeaders;
       requestData['statusCode'] = ctx.proxyToClientResponse.statusCode;
-      log.info("COMING HERE IN REQUESTINTERCEPTOR")
 
       requestCompletionCallback(requestData);
     });

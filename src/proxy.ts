@@ -88,7 +88,7 @@ export class Proxy {
       })
     );
     this.httpProxy.onRequest(this.handleMockApiRequest.bind(this));
-    this.httpProxy.onRequest(this.recordingManager.handleRecordingApiRequest.bind(this));
+    this.httpProxy.onRequest(this.recordingManager.handleRecordingApiRequest.bind(this.recordingManager));
 
     this.httpProxy.onError((context, error, errorType) => {
       log.error(`${errorType}: ${error}`);
@@ -134,22 +134,29 @@ export class Proxy {
     return id;
   }
 
-    public removeSniffer(id?: string): RequestInfo[] {
-    const _sniffers = [...this.sniffers.values()];
-    if (id && !_.isNil(this.sniffers.get(id))) {
-      _sniffers.push(this.sniffers.get(id)!);
+    public removeSniffer(record: boolean, id?: string): RequestInfo[] {
+      const _sniffers = [...this.sniffers.values()];
+      if (id && !_.isNil(this.sniffers.get(id))) {
+        _sniffers.push(this.sniffers.get(id)!);
+      }
+      let apiRequests;
+      if (record) {
+        log.info(`Returning request data in recorded format`);
+        apiRequests = this.recordingManager.getCapturedTraffic(_sniffers);
+      }
+      else {
+        log.info(`Returning request data`)
+        apiRequests = _sniffers.reduce((acc, sniffer) => {
+          acc.push(...sniffer.getRequests());
+          return acc;
+        }, [] as RequestInfo[]);
+      }
+      _sniffers.forEach((sniffer) => this.sniffers.delete(sniffer.getId()));
+      return apiRequests;
     }
-    const apiRequests = _sniffers.reduce((acc, sniffer) => {
-      acc.push(...sniffer.getRequests());
-      return acc;
-    }, [] as RequestInfo[]);
-    _sniffers.forEach((sniffer) => this.sniffers.delete(sniffer.getId()));
-    return apiRequests;
-  }
 
   private async handleMockApiRequest(ctx: IContext, next: () => void): Promise<void> {
     const matchedMocks = await this.findMatchingMocks(ctx);
-    log.info("COMING HEREEEE.....!!!!");
     if (matchedMocks.length) {
       const compiledMock = compileMockConfig(matchedMocks);
       this.applyMockToRequest(ctx, compiledMock, next);

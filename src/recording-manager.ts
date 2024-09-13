@@ -13,53 +13,51 @@ import log from './logger';
 
 export class RecordingManager {
   private readonly records = new Map<string, RecordedMock>();
-  private readonly sniffers = new Map<string, ApiSniffer>();
   private readonly simulationStrategyMap = new Map<string, ReplayStrategy>();
   
   constructor(private readonly options: ProxyOptions) {}
 
-  public addRecordingSniffer(sniffConfig: SniffConfig): string {
-    const id = uuid();
-    const parsedConfig = !sniffConfig ? {} : parseJson(sniffConfig);
-    this.sniffers.set(id, new ApiSniffer(id, parsedConfig));
-    return id;
-  }
-
-  public getCapturedTraffic(id?: string): RecordConfig[] {
-    const _sniffers = [...this.sniffers.values()];
-    
-    if (id && !_.isNil(this.sniffers.get(id))) {
-      _sniffers.push(this.sniffers.get(id)!);
-    }
-
-    const apiRequests = _sniffers.reduce((acc, sniffer) => {
-        const apiConfigMap = new Map<string, RecordConfig>();
-        sniffer.getRequests().forEach(request => {
-            const path = new URL(request.url).pathname;
-            const key = `${path}_${request.method}`;
-            if (apiConfigMap.has(key)) {
-                apiConfigMap.get(key)!.responseBody?.enqueue(request.responseBody);
-            } else {
-                const recordConfig: RecordConfig = {
-                    url: request.url,  // Assuming 'path' is equivalent to 'url'
-                    method: request.method,
-                    requestBody: request.requestBody,
-                    statusCode: request.statusCode,
-                    headers: request.requestHeaders,
-                    responseHeaders: request.responseHeaders,
-                    responseBody: new Queue<string>()  // Initialize the queue
-                }
-                recordConfig.responseBody?.enqueue(request.responseBody);
-                apiConfigMap.set(key, recordConfig);
-            }
-        });
-        acc.push(...apiConfigMap.values());
-        return acc;
-    }, [] as RecordConfig[]);
-    _sniffers.forEach((sniffer) => this.sniffers.delete(sniffer.getId()));
-    log.info(`Fetching api requests as: ${apiRequests}`);
+  public getCapturedTraffic(_sniffers: ApiSniffer[]): RequestInfo[] {
+    const apiRequests: RequestInfo[] = [];
+  
+    _sniffers.forEach(sniffer => {
+      const apiConfigMap = new Map<string, RequestInfo>();
+      const requests = sniffer.getRequests();
+  
+      if (!requests || requests.length === 0) {
+        log.info(`No requests found for sniffer: ${sniffer}`);
+        return;
+      }
+  
+      requests.forEach(request => {
+        log.info(`Processing request for url: ${request.responseBody}`);
+        const path = new URL(request.url).pathname;
+        log.info(`Extracted path: ${path}`);
+        const key = `${path}_${request.method}`;
+        
+        if (apiConfigMap.has(key)) {
+          log.info(`Key already exists: ${key}, enqueuing response body: ${request.responseBody}`);
+          const existingConfig = apiConfigMap.get(key)!;
+          existingConfig.responseBody.push(request.responseBody);  // Using non-null assertion
+        } else {
+          const recordConfig: RequestInfo = {
+            url: request.url,
+            method: request.method,
+            requestBody: request.requestBody,
+            statusCode: request.statusCode,
+            requestHeaders: request.requestHeaders,
+            responseHeaders: request.responseHeaders,
+            responseBody: [request.responseBody]
+          };
+          apiConfigMap.set(key, recordConfig);
+          log.info(`Added new RecordConfig to apiConfigMap with key: ${key}`);
+        }
+      });
+  
+      apiRequests.push(...apiConfigMap.values());
+    });
     return apiRequests;
-  }
+  }  
   
   public startTrafficReplay(simulationConfig: ReplayConfig) {
     const recordConfigs = simulationConfig.recordings;
@@ -81,6 +79,7 @@ export class RecordingManager {
   }
 
   public async handleRecordingApiRequest(ctx: IContext, next: () => void): Promise<void> {
+    log.info(`handling record requests for ctx ${ctx}`);
     const matchedRecords = await this.findMatchingRecords(ctx);
     if (matchedRecords.length) {
       matchedRecords.forEach(matchedRecord => {
