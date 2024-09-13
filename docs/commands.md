@@ -50,7 +50,7 @@ Add a new mock specification for intercepting and updating the request. The comm
 ```javascript
  const authorizationMock = await driver.execute("interceptor: addMock", [{
     config: {
-        url "**/reqres.in/**",
+        url: "**/reqres.in/**",
         headers: {
             "Authorization" : "Bearer bearertoken"
         }
@@ -59,7 +59,7 @@ Add a new mock specification for intercepting and updating the request. The comm
 
   const userListGetMock = await driver.execute("interceptor: addMock", [{
     config: {
-        url "**/reqres.in/api/users",
+        url: "**/reqres.in/api/users",
         method: "GET",
         responseBody: JSON.stringify({
             page: 2,
@@ -89,7 +89,7 @@ Given a mockId return during addMock command, will remove the mock configuration
 ```javascript
  const authorizationMock = await driver.execute("interceptor: addMock", [{
     config: {
-        url "**/reqres.in/**",
+        url: "**/reqres.in/**",
         headers: {
             "Authorization" : "Bearer bearertoken"
         }
@@ -125,8 +125,8 @@ It also supports filtering the request based on the url. `include` will only lis
 ```javascript
   await driver.execute("interceptor: startListening", [{
     config: {
-      "include" : {
-        url "**/reqres.in/**",
+      include : {
+        url: "**/reqres.in/**",
       }
     }
  }]);
@@ -137,8 +137,8 @@ It also supports filtering the request based on the url. `include` will only lis
 ```javascript
   await driver.execute("interceptor: startListening", [{
     config: {
-      "exclude" : {
-        url "**/reqres.in/**",
+      exclude : {
+        url: "**/reqres.in/**",
       }
     }
  }]);
