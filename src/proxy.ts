@@ -47,7 +47,7 @@ export class Proxy {
     return this._replayStarted;
   }
 
-  public startReplay(): void {
+  public startReplaying(): void {
     this._replayStarted = true;
   }
 

@@ -1,6 +1,6 @@
 import { RecordConfig } from './types';
 
-export class RecordedMock {
+export class Record {
   private enabled = true;
 
   constructor(private id: string, private config: RecordConfig) {}

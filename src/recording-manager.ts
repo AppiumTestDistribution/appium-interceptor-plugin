@@ -1,7 +1,7 @@
 import { MockConfig, RecordConfig, RequestInfo, ReplayConfig, ReplayStrategy, SniffConfig } from './types';
 import { Queue } from 'queue-typescript';
 import { ProxyOptions } from './proxy';
-import { RecordedMock } from './recorded-mock';
+import { Record } from './record';
 import { v4 as uuid } from 'uuid';
 import _ from 'lodash';
 import { IContext } from 'http-mitm-proxy';
@@ -12,7 +12,7 @@ import log from './logger';
 
 
 export class RecordingManager {
-  private readonly records = new Map<string, RecordedMock>();
+  private readonly records = new Map<string, Map<string, Record>>();
   private readonly simulationStrategyMap = new Map<string, ReplayStrategy>();
   
   constructor(private readonly options: ProxyOptions) {}
@@ -38,7 +38,7 @@ export class RecordingManager {
         if (apiConfigMap.has(key)) {
           log.info(`Key already exists: ${key}, enqueuing response body: ${request.responseBody}`);
           const existingConfig = apiConfigMap.get(key)!;
-          existingConfig.responseBody.push(request.responseBody);  // Using non-null assertion
+          existingConfig.responseBody.push(request.responseBody);  
         } else {
           const recordConfig: RequestInfo = {
             url: request.url,
@@ -59,10 +59,13 @@ export class RecordingManager {
     return apiRequests;
   }  
   
-  public startTrafficReplay(simulationConfig: ReplayConfig) {
+  public replayTraffic(simulationConfig: ReplayConfig) {
     const recordConfigs = simulationConfig.recordings;
     this.simulationStrategyMap.set(this.options.sessionId, simulationConfig.replayStrategy ? 
                                     simulationConfig.replayStrategy : ReplayStrategy.DEFAULT);
+    
+    const recordMap = new Map<string, Record>();  
+    const replayId = `${this.options.deviceUDID}-${this.options.sessionId}`;
 
     recordConfigs.forEach(recordConfig => {
         const responseBody : Queue<string> = new Queue<string>();
@@ -76,8 +79,16 @@ export class RecordingManager {
         }
         recordConfig.responseBody = responseBody;
         log.info(`setting records to map for url: ${recordConfig.url}`);
-        this.records.set(id, new RecordedMock(id, recordConfig));
+        recordMap.set(id, new Record(id, recordConfig));
     })
+    this.records.set(replayId, recordMap);
+    return replayId;
+  }
+
+  public stopReplay(id?: string): void {
+    const replayId = id ?? `${this.options.deviceUDID}-${this.options.sessionId}`;
+    log.info(`Deleting replay config for id: ${replayId}}`)
+    this.records.delete(replayId);
   }
 
   public async handleRecordingApiRequest(ctx: IContext, next: () => void): Promise<void> {
@@ -105,18 +116,19 @@ export class RecordingManager {
 
     const matchedRecords: RecordConfig[] = [];
     const id = `${this.options.deviceUDID}_${url.pathname}_${request.method?.toLowerCase()}`;
-    log.info(`finding matching mock for url: ${url}`);
-    log.info(`Does mock exists in map: ${this.records.has(id)} for id: ${id}`);
+    const records = this.records.get(`${this.options.deviceUDID}-${this.options.sessionId}`);
 
-    if (this.records.has(id)) {
-      const record = this.records.get(id);
+    log.info(`finding matching mock for url: ${url} and does it exists ${records?.has(id)}`);
+
+    if (records && records.has(id)) {
+      const record = records.get(id);
       const recordConfig = record?.getConfig();
       if (recordConfig) {
         log.info(`Mock found for url: ${url.pathname}`)
         matchedRecords.push(recordConfig);
       }
-    } else {
-      for (const record of this.records.values()) {
+    } else if (records) {
+      for (const record of records.values()) {
         const recordConfig = record?.getConfig();
         if (doesUrlMatch(recordConfig.url, url.toString())) {
           matchedRecords.push(recordConfig);
@@ -158,7 +170,7 @@ export class RecordingManager {
       log.info(`returning requests from proxy server.. !!`);
     } else {
       log.info(`trying to return from backend in record`);
-      // modifyResponseBody(ctx, recordConfig);
+      modifyResponseBody(ctx, recordConfig);
       next();
     }
   }

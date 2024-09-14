@@ -54,29 +54,45 @@ describe('Different APK Plugin Test', function() {
     fs.writeFileSync('./recordedData.json', jsonString, 'utf8');
   });
 
-  it('Should replay recorded requests', async function() {
-    // Read recorded data from file
+  it('Replay traffic', async function() {
     const recordedData = JSON.parse(fs.readFileSync('./recordedData.json', 'utf8'));
     
-    await driver.execute("interceptor: replayTraffic", {
+    await driver.execute("interceptor: startReplaying", {
       replayConfig: {
         recordings: recordedData,
         replayStrategy: 'CIRCULAR'
       }
     });
     await sleep(2000);
-
-      // Loop 5 times from 0 to 4
     for (let i = 0; i < 8; i++) {
       console.log(`Click iteration: ${i + 1}`);
-      
-      // Perform a click action on the button
       const element = await driver.$('//android.widget.TextView[@text="Get User List"]');
       await element.click();
-      await sleep(2000); // Wait between clicks if necessary
+      await sleep(2000); 
     }
 
   });
+
+  it('Stop replaying in between replay traffic', async function() {
+    const recordedData = JSON.parse(fs.readFileSync('./recordedData.json', 'utf8'));
+    
+    await driver.execute("interceptor: startReplaying", {
+      replayConfig: {
+        recordings: recordedData,
+        replayStrategy: 'CIRCULAR'
+      }
+    });
+    await sleep(2000);
+    for (let i = 0; i < 8; i++) {
+      console.log(`Click iteration: ${i + 1}`);
+      const element = await driver.$('//android.widget.TextView[@text="Get User List"]');
+      await element.click();
+      await sleep(2000); 
+      if (i == 4) {
+        driver.execute("interceptor: stopReplaying");
+      }
+    }
+  })
 
   afterEach(async function() {
     await driver.pause(1000);

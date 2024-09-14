@@ -7,7 +7,7 @@
   "scripts": {
     "build": "npx tsc",
     "test": "mocha --require ts-node/register -p test/plugin.spec.js --exit --timeout 260000",
-    "record-test": "mocha --require ts-node/register -p test/plugin.record.js --exit",
+    "record-replay-test": "mocha --require ts-node/register -p test/record.replay.js --exit",
     "prepublish": "npx tsc",
     "lint": "eslint '**/*.js' --fix",
     "prettier": "prettier '**/*.js' --write --single-quote",
