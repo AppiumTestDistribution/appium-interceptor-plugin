@@ -291,7 +291,7 @@ driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'List')]")
             put("config", config);
         }});
 
-###Update request Payload partially
+### Update request Payload partially
 
 ```
  ObjectMapper objectMapper = new ObjectMapper();
@@ -349,7 +349,7 @@ ArrayNode updateRequestBodyArray = objectMapper.createArrayNode();
         }});
 ```
 
-###Status code update
+### Status code update
 
 ```
   Map<String, Object> config = new HashMap();
@@ -362,7 +362,7 @@ ArrayNode updateRequestBodyArray = objectMapper.createArrayNode();
 
 ```
 
-###Remove Mock
+### Remove Mock
 
 ```
 
