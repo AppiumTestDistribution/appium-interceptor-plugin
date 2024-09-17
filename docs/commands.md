@@ -293,6 +293,7 @@ driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'List')]")
 
 ###Update request Payload partially
 
+```
  ObjectMapper objectMapper = new ObjectMapper();
 
         ArrayNode updateRequestBodyArray = objectMapper.createArrayNode();
@@ -319,10 +320,11 @@ driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'List')]")
         Object id= ((JavascriptExecutor) driver).executeScript("interceptor: addMock", new HashMap<String, Object>() {{
             put("config", config);
         }});
-
+```
 
 ### Response Payload Partial Update
 
+```
 ArrayNode updateRequestBodyArray = objectMapper.createArrayNode();
         updateRequestBodyArray.add(createUpdateBodySpec
                 ("$.matches.1[0].team1.dName", "Appium"));
@@ -345,12 +347,35 @@ ArrayNode updateRequestBodyArray = objectMapper.createArrayNode();
         Object id=   ((JavascriptExecutor) driver).executeScript("interceptor: addMock", new HashMap<String, Object>() {{
             put("config", config);
         }});
+```
 
 ###Status code update
+
+```
   Map<String, Object> config = new HashMap();
         config.put("url", "**/api/fl/auth/v3/getOtp");
         config.put("statusCode", Integer.valueOf(500));
+
         Object id= ((JavascriptExecutor) driver)
                 .executeScript("interceptor: addMock",
                         new HashMap() {{put("config", config); }});
 
+```
+
+###Remove Mock
+
+```
+
+ infoLogs("** Remove the Mock **");
+        ((JavascriptExecutor) driver)
+                .executeScript("interceptor: removeMock", new HashMap() {{
+            put("id", id);
+        }});
+
+Below code shows how to add the mock and get the id
+
+ Object id= ((JavascriptExecutor) driver)
+                .executeScript("interceptor: addMock",
+                        new HashMap() {{put("config", config); }});
+
+```
