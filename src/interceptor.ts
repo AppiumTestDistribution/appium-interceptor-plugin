@@ -3,6 +3,7 @@ import stream from 'stream';
 import { constructURLFromHttpRequest } from './utils/proxy';
 import responseDecoder from './response-decoder';
 import parseHeader from 'parse-headers';
+import log from './logger';
 
 function readBodyFromStream(writable: stream.Writable | undefined, callback: (value: any) => void) {
   if (!writable) {

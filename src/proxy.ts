@@ -1,4 +1,4 @@
-import { MockConfig, RequestInfo, SniffConfig } from './types';
+import { MockConfig, RecordConfig, RequestInfo, SniffConfig } from './types';
 import { Proxy as HttpProxy, IContext, IProxyOptions } from 'http-mitm-proxy';
 import { v4 as uuid } from 'uuid';
 import {
@@ -19,7 +19,8 @@ import { Mock } from './mock';
 import { RequestInterceptor } from './interceptor';
 import { ApiSniffer } from './api-sniffer';
 import _ from 'lodash';
-import logger from './logger';
+import log from './logger';
+import { RecordingManager } from './recording-manager';
 
 export interface ProxyOptions {
   deviceUDID: string;
@@ -31,18 +32,33 @@ export interface ProxyOptions {
 
 export class Proxy {
   private _started = false;
+  private _replayStarted = false;
   private readonly mocks = new Map<string, Mock>();
   private readonly sniffers = new Map<string, ApiSniffer>();
 
   private readonly httpProxy: HttpProxy;
+  private readonly recordingManager: RecordingManager;
 
   public isStarted(): boolean {
     return this._started;
   }
 
+  public isReplayStarted(): boolean {
+    return this._replayStarted;
+  }
+
+  public startReplaying(): void {
+    this._replayStarted = true;
+  }
+
   constructor(private readonly options: ProxyOptions) {
     this.httpProxy = new HttpProxy();
+    this.recordingManager = new RecordingManager(options);
     addDefaultMocks(this);
+  }
+
+  public getRecordingManager(): RecordingManager {
+    return this.recordingManager;
   }
 
   public get port(): number {
@@ -81,7 +97,7 @@ export class Proxy {
     this.httpProxy.onRequest(this.handleMockApiRequest.bind(this));
 
     this.httpProxy.onError((context, error, errorType) => {
-      logger.error(`${errorType}: ${error}`);
+      log.error(`${errorType}: ${error}`);
     });
 
     await new Promise((resolve) => {
@@ -123,26 +139,37 @@ export class Proxy {
     return id;
   }
 
-  public removeSniffer(id?: string): RequestInfo[] {
-    const _sniffers = [...this.sniffers.values()];
-    if (id && !_.isNil(this.sniffers.get(id))) {
-      _sniffers.push(this.sniffers.get(id)!);
+    public removeSniffer(record: boolean, id?: string): RequestInfo[] {
+      const _sniffers = [...this.sniffers.values()];
+      if (id && !_.isNil(this.sniffers.get(id))) {
+        _sniffers.push(this.sniffers.get(id)!);
+      }
+      let apiRequests;
+      if (record) {
+        apiRequests = this.recordingManager.getCapturedTraffic(_sniffers);
+      }
+      else {
+        apiRequests = _sniffers.reduce((acc, sniffer) => {
+          acc.push(...sniffer.getRequests());
+          return acc;
+        }, [] as RequestInfo[]);
+      }
+      _sniffers.forEach((sniffer) => this.sniffers.delete(sniffer.getId()));
+      return apiRequests;
     }
-    const apiRequests = _sniffers.reduce((acc, sniffer) => {
-      acc.push(...sniffer.getRequests());
-      return acc;
-    }, [] as RequestInfo[]);
-    _sniffers.forEach((sniffer) => this.sniffers.delete(sniffer.getId()));
-    return apiRequests;
-  }
 
   private async handleMockApiRequest(ctx: IContext, next: () => void): Promise<void> {
-    const matchedMocks = await this.findMatchingMocks(ctx);
-    if (matchedMocks.length) {
-      const compiledMock = compileMockConfig(matchedMocks);
-      this.applyMockToRequest(ctx, compiledMock, next);
-    } else {
-      next();
+    if (this.isReplayStarted()) {
+      this.recordingManager.handleRecordingApiRequest(ctx, next);
+    } else if (!this.isReplayStarted()) {
+      const matchedMocks = await this.findMatchingMocks(ctx);
+      if (matchedMocks.length) {
+        const compiledMock = compileMockConfig(matchedMocks);
+        this.applyMockToRequest(ctx, compiledMock, next);
+      }
+      else {
+        next();
+      }
     }
   }
 

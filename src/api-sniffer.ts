@@ -1,5 +1,6 @@
 import { RequestInfo, SniffConfig } from './types';
 import { doesUrlMatch } from './utils/proxy';
+import log from './logger';
 
 export class ApiSniffer {
   private readonly requests: RequestInfo[] = [];
@@ -23,7 +24,10 @@ export class ApiSniffer {
   private doesRequestMatchesConfig(request: RequestInfo) {
     const doesIncludeRuleMatches = !this.config.include
       ? true
-      : this.config.include.some((config) => doesUrlMatch(config.url, request.url));
+      : this.config.include.some((config) => {
+        log.info(`Matching include url ${request.url} with request ${config.url}`);
+        doesUrlMatch(config.url, request.url)
+      });
     const doesExcludeRuleMatches = !this.config.exclude
       ? true
       : !this.config.exclude.some((config) => doesUrlMatch(config.url, request.url));
