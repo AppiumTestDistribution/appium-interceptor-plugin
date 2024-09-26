@@ -79,7 +79,6 @@ export class Proxy {
 
   public async start(): Promise<boolean> {
     if (this._started) return true;
-    log.info(`starting proxy server...`);
 
     const proxyOptions: IProxyOptions = {
       port: this.port,
@@ -96,7 +95,6 @@ export class Proxy {
       })
     );
     this.httpProxy.onRequest(this.handleMockApiRequest.bind(this));
-    // this.httpProxy.onRequest(this.recordingManager.handleRecordingApiRequest.bind(this.recordingManager));
 
     this.httpProxy.onError((context, error, errorType) => {
       log.error(`${errorType}: ${error}`);
@@ -137,7 +135,6 @@ export class Proxy {
   public addSniffer(sniffConfig: SniffConfig): string {
     const id = uuid();
     const parsedConfig = !sniffConfig ? {} : parseJson(sniffConfig);
-    log.info(`parsed sniff config is ${parsedConfig}`);
     this.sniffers.set(id, new ApiSniffer(id, parsedConfig));
     return id;
   }
@@ -149,11 +146,9 @@ export class Proxy {
       }
       let apiRequests;
       if (record) {
-        log.info(`Returning request data in recorded format`);
         apiRequests = this.recordingManager.getCapturedTraffic(_sniffers);
       }
       else {
-        log.info(`Returning request data`)
         apiRequests = _sniffers.reduce((acc, sniffer) => {
           acc.push(...sniffer.getRequests());
           return acc;
@@ -179,7 +174,6 @@ export class Proxy {
   }
 
   private async findMatchingMocks(ctx: IContext): Promise<MockConfig[]> {
-    log.info(`coming here in finding mockss..`);
     const request = ctx.clientToProxyRequest;
     if (!request.headers?.host || !request.url) {
       return [];
@@ -190,8 +184,6 @@ export class Proxy {
       path: request.url,
       protocol: ctx.isSSL ? 'https://' : 'http://',
     }).toString();
-
-    log.info("Url coming is: ",url);
 
     const matchedMocks: MockConfig[] = [];
     for (const mock of this.mocks.values()) {
@@ -228,7 +220,6 @@ export class Proxy {
       ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
       ctx.proxyToClientResponse.end(mockConfig.responseBody);
     } else {
-      log.info(`trying to return from backend in mock`);
       modifyResponseBody(ctx, mockConfig);
       next();
     }
