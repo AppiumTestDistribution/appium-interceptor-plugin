@@ -1,9 +1,16 @@
+import { Queue } from 'queue-typescript';
+
 export type CliArg = Record<string, unknown>;
 
 export type ISessionCapability = {
   firstMatch: any[];
   alwaysMatch: any;
 };
+
+export enum ReplayStrategy {
+  CIRCULAR = 'CIRCULAR',
+  DEFAULT = 'DEFAULT'
+}
 
 export type UrlPattern = string;
 export type HttpHeader =
@@ -25,7 +32,7 @@ export type RegExpReplacer = {
 
 export type UpdateBodySpec = JsonPathReplacer | RegExpReplacer;
 
-export type MockConfig = {
+type BaseConfig = {
   url: UrlPattern;
   method?: string;
   updateUrl?: RegExpReplacer[];
@@ -34,9 +41,21 @@ export type MockConfig = {
   updateRequestBody?: UpdateBodySpec[];
   statusCode?: number;
   responseHeaders?: HttpHeader;
+  delay?: number;
+};
+
+export type MockConfig = BaseConfig & {
   responseBody?: string;
   updateResponseBody?: UpdateBodySpec[];
-  delay?: number;
+};
+
+export type RecordConfig = BaseConfig & {
+  responseBody?: Queue<string>;
+};
+
+export type ReplayConfig = {
+  recordings: RecordConfig[];
+  replayStrategy?: ReplayStrategy;
 };
 
 export type SniffConfig = {

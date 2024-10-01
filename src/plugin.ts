@@ -1,7 +1,7 @@
 import { BasePlugin } from 'appium/plugin';
 import http from 'http';
 import { Application } from 'express';
-import { CliArg, ISessionCapability, MockConfig, RequestInfo, SniffConfig } from './types';
+import { CliArg, ISessionCapability, MockConfig, RecordConfig, RequestInfo, ReplayConfig, SniffConfig } from './types';
 import _ from 'lodash';
 import { configureWifiProxy, isRealDevice } from './utils/adb';
 import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
@@ -38,6 +38,26 @@ export class AppiumInterceptorPlugin extends BasePlugin {
 
     'interceptor: stopListening': {
       command: 'stopListening',
+      params: { optional: ['id'] },
+    },
+
+    'interceptor: startRecording': {
+      command: 'startRecording',
+      params: { optional: ['config'] },
+    },
+
+    'interceptor: stopRecording': {
+      command: 'stopRecording',
+      params: { optional: ['id'] },
+    },
+
+    'interceptor: startReplaying': {
+      command: 'startReplaying',
+      params: { required: ['replayConfig'] },
+    },
+
+    'interceptor: stopReplaying': {
+      command: 'stopReplaying',
       params: { optional: ['id'] },
     },
   };
@@ -77,6 +97,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       await configureWifiProxy(adb, deviceUDID, realDevice, proxy);
       proxyCache.add(sessionId, proxy);
     }
+    log.info("Creating session for appium interceptor");
     return response;
   }
 
@@ -162,7 +183,50 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     }
 
     log.info(`Stopping listener with id: ${id}`);
-    return proxy.removeSniffer(id);
+    return proxy.removeSniffer(false, id);
+  }
+
+  async startRecording(next: any, driver: any, config: SniffConfig): Promise<string> {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+
+    log.info(`Adding listener with config ${config}`);
+    return proxy?.addSniffer(config);
+  }
+
+  async stopRecording(next: any, driver: any, id: any): Promise<RecordConfig[]> {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+
+    log.info(`Stopping recording with id: ${id}`);
+    return proxy.removeSniffer(true, id);
+  }
+
+  async startReplaying(next:any, driver:any, replayConfig: ReplayConfig) {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+    log.info('Starting replay traffic');
+    proxy.startReplaying();
+    return proxy.getRecordingManager().replayTraffic(replayConfig);
+  }
+
+  async stopReplaying(next: any, driver:any, id:any) {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+    log.info("Initiating stop replaying traffic");
+    proxy.getRecordingManager().stopReplay(id);
   }
 
   async execute(next: any, driver: any, script: any, args: any) {
