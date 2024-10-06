@@ -274,4 +274,108 @@ config.put("responseBody","{\n" +
 driver.findElement(By.xpath("//android.widget.TextView[contains(@text,'List')]")).click();
 ```
 
+### Add or Remove Request Headers
+        // Create the remove headers list
+        List<String> removeHeaders = new ArrayList<>();
+        removeHeaders.add("cookie");
 
+        // Create the headers object
+        Map headers = new HashMap();
+         headers.put("remove", removeHeaders);
+
+        infoLogs("** add mock code here **");
+        Map<String, Object> config = new HashMap();
+        config.put("url", "**/api/lobbyApi/v1/getMatches");
+        config.put("headers",headers);
+        Object id= ((JavascriptExecutor) driver).executeScript("interceptor: addMock", new HashMap() {{
+            put("config", config);
+        }});
+
+### Update request Payload partially
+
+```
+ ObjectMapper objectMapper = new ObjectMapper();
+
+        ArrayNode updateRequestBodyArray = objectMapper.createArrayNode();
+        // Update sportsType to 1,so that all the sports tab should show the same data.
+        
+        ObjectNode sportsType = objectMapper.createObjectNode();
+        sportsType.put("jsonPath", "$.sportsType");
+        sportsType.put("value", "1");
+         
+        updateRequestBodyArray.add(sportsType);
+
+
+        List<Map<String, Object>> updateRequestBodyList = new ArrayList<>();
+        for (int i = 0; i < updateRequestBodyArray.size(); i++) {
+            Map<String, Object> map = objectMapper.convertValue(updateRequestBodyArray.get(i), Map.class);
+            updateRequestBodyList.add(map);
+        }
+
+        Map<String, Object> config = new HashMap<>();
+        config.put("url", "**/api/lobbyApi/v1/getMatches");
+        config.put("updateRequestBody", updateRequestBodyList);
+
+        infoLogs("Step 2: Add Mock Interceptor");
+        Object id= ((JavascriptExecutor) driver).executeScript("interceptor: addMock", new HashMap<String, Object>() {{
+            put("config", config);
+        }});
+```
+
+### Response Payload Partial Update
+
+```
+ArrayNode updateRequestBodyArray = objectMapper.createArrayNode();
+        updateRequestBodyArray.add(createUpdateBodySpec
+                ("$.matches.1[0].team1.dName", "Appium"));
+        updateRequestBodyArray.add(createUpdateBodySpec
+                ("$.matches.1[0].team2.dName", "Selenium"));
+        updateRequestBodyArray.add(createUpdateBodySpec
+                ("$.matches.1[0].seriesName", "The Official Appium Conference 2024"));
+        
+
+        List<Map<String, Object>> updateRequestBodyList = new ArrayList<>();
+        for (int i = 0; i < updateRequestBodyArray.size(); i++) {
+            Map<String, Object> map = objectMapper.convertValue(updateRequestBodyArray.get(i), Map.class);
+            updateRequestBodyList.add(map);
+        }
+         
+        Map<String, Object> config = new HashMap<>();
+        config.put("url", "**/api/lobbyApi/v1/getMatches");
+        config.put("updateResponseBody", updateRequestBodyList);
+
+        Object id=   ((JavascriptExecutor) driver).executeScript("interceptor: addMock", new HashMap<String, Object>() {{
+            put("config", config);
+        }});
+```
+
+### Status code update
+
+```
+  Map<String, Object> config = new HashMap();
+        config.put("url", "**/api/fl/auth/v3/getOtp");
+        config.put("statusCode", Integer.valueOf(500));
+
+        Object id= ((JavascriptExecutor) driver)
+                .executeScript("interceptor: addMock",
+                        new HashMap() {{put("config", config); }});
+
+```
+
+### Remove Mock
+
+```
+
+ infoLogs("** Remove the Mock **");
+        ((JavascriptExecutor) driver)
+                .executeScript("interceptor: removeMock", new HashMap() {{
+            put("id", id);
+        }});
+
+Below code shows how to add the mock and get the id
+
+ Object id= ((JavascriptExecutor) driver)
+                .executeScript("interceptor: addMock",
+                        new HashMap() {{put("config", config); }});
+
+```
