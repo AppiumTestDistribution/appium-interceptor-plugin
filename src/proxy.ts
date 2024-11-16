@@ -220,7 +220,12 @@ export class Proxy {
       ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
       ctx.proxyToClientResponse.end(mockConfig.responseBody);
     } else {
-      modifyResponseBody(ctx, mockConfig);
+      try{
+        modifyResponseBody(ctx, mockConfig);
+      }catch (error) {
+        log.error(`Error modifying response body: ${error}`);
+        next();
+      }
       next();
     }
   }
