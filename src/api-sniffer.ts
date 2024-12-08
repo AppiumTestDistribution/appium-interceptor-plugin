@@ -25,8 +25,9 @@ export class ApiSniffer {
     const doesIncludeRuleMatches = !this.config.include
       ? true
       : this.config.include.some((config) => {
-        log.info(`Matching include url ${request.url} with request ${config.url}`);
-        doesUrlMatch(config.url, request.url)
+        const doesMatch = doesUrlMatch(config.url, request.url)
+        log.info(`Matching include url ${config.url} with request ${request.url} => ${doesMatch ? 'YES' : 'NO'}`);
+        return doesMatch
       });
     const doesExcludeRuleMatches = !this.config.exclude
       ? true
