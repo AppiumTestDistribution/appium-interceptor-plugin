@@ -40,6 +40,30 @@ const MockSpecSchema = {
               type: 'string',
             },
             value: {
+              type: 'boolean',
+            },
+          },
+          required: ['jsonPath', 'value'],
+          type: 'object',
+        },
+        {
+          properties: {
+            jsonPath: {
+              type: 'string',
+            },
+            value: {
+              type: 'integer',
+            },
+          },
+          required: ['jsonPath', 'value'],
+          type: 'object',
+        },
+        {
+          properties: {
+            jsonPath: {
+              type: 'string',
+            },
+            value: {
               type: 'string',
             },
           },
@@ -53,6 +77,30 @@ const MockSpecSchema = {
             },
             value: {
               type: 'string',
+            },
+          },
+          type: 'object',
+          required: ['regexp', 'value'],
+        },
+        {
+          properties: {
+            regexp: {
+              type: 'string',
+            },
+            value: {
+              type: 'boolean',
+            },
+          },
+          type: 'object',
+          required: ['regexp', 'value'],
+        },
+        {
+          properties: {
+            regexp: {
+              type: 'string',
+            },
+            value: {
+              type: 'integer',
             },
           },
           type: 'object',
