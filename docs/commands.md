@@ -48,16 +48,16 @@ Add a new mock specification for intercepting and updating the request. The comm
 
 
 ```javascript
- const authorizationMock = await driver.execute("interceptor: addMock", [{
+ const authorizationMock = await driver.execute("interceptor: addMock", {
     config: {
         url: "**/reqres.in/**",
         headers: {
             "Authorization" : "Bearer bearertoken"
         }
     }
- }]);
+ });
 
-  const userListGetMock = await driver.execute("interceptor: addMock", [{
+  const userListGetMock = await driver.execute("interceptor: addMock", {
     config: {
         url: "**/reqres.in/api/users",
         method: "GET",
@@ -76,7 +76,7 @@ Add a new mock specification for intercepting and updating the request. The comm
             ]
         })
     }
- }]);
+ });
 ```
 
 `authorizationMock` will be executed for all api calls made to `reqres.in` domain and `userListGetMock` will be applied for `https://www.reqres.in/api/users` with `GET` http method. 
@@ -87,23 +87,23 @@ Given a mockId return during addMock command, will remove the mock configuration
 #### Example:
 
 ```javascript
- const authorizationMock = await driver.execute("interceptor: addMock", [{
+ const authorizationMock = await driver.execute("interceptor: addMock", {
     config: {
         url: "**/reqres.in/**",
         headers: {
             "Authorization" : "Bearer bearertoken"
         }
     }
- }]);
+ });
 
  //peform user action
  //perform validation
  ..
  ..
 
- await driver.execute("interceptor: removeMock", [{
+ await driver.execute("interceptor: removeMock", {
     id: authorizationMock
- }]);
+ });
 
  // authorizationMock will not be active after this point and the test will proceed with normal flow
 ```
@@ -123,32 +123,32 @@ Start listening for all network traffic (API calls) made by the device during a 
 It also supports filtering the request based on the url. `include` will only listents for requests that macthes the given url pattern and `exclude` will listen for all api's that doesn't match the url pattern.
 
 ```javascript
-  await driver.execute("interceptor: startListening", [{
+  await driver.execute("interceptor: startListening", {
     config: {
-      include : {
+      include : [{
         url: "**/reqres.in/**",
-      }
+      }]
     }
- }]);
+ });
   // perform some action
   // ...
 ```
 
 ```javascript
-  await driver.execute("interceptor: startListening", [{
+  await driver.execute("interceptor: startListening", {
     config: {
-      exclude : {
+      exclude : [{
         url: "**/reqres.in/**",
-      }
+      }]
     }
- }]);
+ });
   // perform some action
   // ...
 ```
 
-### interceptor: stopListening
+### interceptor: getInterceptedData
 
-Stops listening for networks traffic and return all previously recorded api calls.
+Return all previously recorded api calls.
 
 #### Example:
 
@@ -156,12 +156,12 @@ Stops listening for networks traffic and return all previously recorded api call
   await driver.execute("interceptor: startListening");
   // perform some action
   // ...
-  const apiRequests = await driver.execute("interceptor: stopListening");
+  const apiRequests = await driver.execute("interceptor: getInterceptedData");
 ```
 
 #### Returns:
 
-stopListening command will retunrs an array of network details in the below JSON format
+getInterceptedData command will return an array of network details in the below JSON format
 
 ```javascript
 [
@@ -250,6 +250,23 @@ stopListening command will retunrs an array of network details in the below JSON
     }
 ]
 ```
+
+### interceptor: stopListening
+
+Stops listening for networks traffic and return all previously recorded api calls.
+
+#### Example:
+
+```javascript
+  await driver.execute("interceptor: startListening");
+  // perform some action
+  // ...
+  const apiRequests = await driver.execute("interceptor: stopListening");
+```
+
+#### Returns:
+
+stopListening command will return an array of network details in the same format than getInterceptedData.
 
 ### Java Example
 ```

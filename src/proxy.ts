@@ -139,24 +139,37 @@ export class Proxy {
     return id;
   }
 
-    public removeSniffer(record: boolean, id?: string): RequestInfo[] {
-      const _sniffers = [...this.sniffers.values()];
-      if (id && !_.isNil(this.sniffers.get(id))) {
+  public getInterceptedData(id?: string): RequestInfo[] {
+    const _sniffers = [...this.sniffers.values()];
+    if (id && !_.isNil(this.sniffers.get(id))) {
         _sniffers.push(this.sniffers.get(id)!);
-      }
-      let apiRequests;
-      if (record) {
-        apiRequests = this.recordingManager.getCapturedTraffic(_sniffers);
-      }
-      else {
-        apiRequests = _sniffers.reduce((acc, sniffer) => {
-          acc.push(...sniffer.getRequests());
-          return acc;
-        }, [] as RequestInfo[]);
-      }
-      _sniffers.forEach((sniffer) => this.sniffers.delete(sniffer.getId()));
-      return apiRequests;
     }
+
+    const apiRequests = _sniffers.reduce((acc, sniffer) => {
+        acc.push(...sniffer.getRequests());
+        return acc;
+    }, [] as RequestInfo[]);
+    return apiRequests;
+  }
+
+  public removeSniffer(record: boolean, id?: string): RequestInfo[] {
+    const _sniffers = [...this.sniffers.values()];
+    if (id && !_.isNil(this.sniffers.get(id))) {
+      _sniffers.push(this.sniffers.get(id)!);
+    }
+    let apiRequests;
+    if (record) {
+      apiRequests = this.recordingManager.getCapturedTraffic(_sniffers);
+    }
+    else {
+      apiRequests = _sniffers.reduce((acc, sniffer) => {
+        acc.push(...sniffer.getRequests());
+        return acc;
+      }, [] as RequestInfo[]);
+    }
+    _sniffers.forEach((sniffer) => this.sniffers.delete(sniffer.getId()));
+    return apiRequests;
+  }
 
   private async handleMockApiRequest(ctx: IContext, next: () => void): Promise<void> {
     if (this.isReplayStarted()) {
