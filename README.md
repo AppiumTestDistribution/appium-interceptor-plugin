@@ -5,7 +5,7 @@ This plugin uses mitmproxy
 
 ## Prerequisite
 
-1. Appium version 2.0
+1. Appium version 3.0
 2. Intercepting API requests from android requires CA certificate to be installed on the device. Follow the instructions in [How to install CA certificate on android](./docs/certificate-installation.md) section and install the CA certificate.
 
 ## Installation - Server

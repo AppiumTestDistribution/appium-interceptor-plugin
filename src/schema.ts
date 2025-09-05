@@ -163,7 +163,7 @@ const MockSpecSchema = {
 };
 
 function validateMockConfig(config: MockConfig) {
-  const ajv = new Ajv({ jsonPointers: true, allErrors: true });
+  const ajv = new Ajv({ strict: false, allErrors: true });
   const validate = ajv.compile(MockSpecSchema);
 
   const isValid = validate(config);

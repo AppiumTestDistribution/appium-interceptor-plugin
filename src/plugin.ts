@@ -36,6 +36,11 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       params: { optional: ['config'] },
     },
 
+    'interceptor: getInterceptedData': {
+      command: 'getInterceptedData',
+      params: { optional: ['id'] },
+    },
+
     'interceptor: stopListening': {
       command: 'stopListening',
       params: { optional: ['id'] },
@@ -173,6 +178,17 @@ export class AppiumInterceptorPlugin extends BasePlugin {
 
     log.info(`Adding listener with config ${config}`);
     return proxy?.addSniffer(config);
+  }
+
+  async getInterceptedData(next: any, driver: any, id: any): Promise<RequestInfo[]> {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+        logger.error('Proxy is not running');
+        throw new Error('Proxy is not active for current session');
+    }
+
+    log.info(`Getting intercepted requests for listener with id: ${id}`);
+    return proxy.getInterceptedData(false, id);
   }
 
   async stopListening(next: any, driver: any, id: any): Promise<RequestInfo[]> {
