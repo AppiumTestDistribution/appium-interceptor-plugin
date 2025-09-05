@@ -188,7 +188,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     }
 
     log.info(`Getting intercepted requests for listener with id: ${id}`);
-    return proxy.getInterceptedData(id);
+    return proxy.getInterceptedData(false, id);
   }
 
   async stopListening(next: any, driver: any, id: any): Promise<RequestInfo[]> {
