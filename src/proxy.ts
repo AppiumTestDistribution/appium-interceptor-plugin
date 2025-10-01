@@ -1,5 +1,6 @@
 import { MockConfig, RecordConfig, RequestInfo, SniffConfig } from './types';
 import { Proxy as HttpProxy, IContext, IProxyOptions } from 'http-mitm-proxy';
+import { ProxyAgent } from 'proxy-agent';
 import { v4 as uuid } from 'uuid';
 import {
   addDefaultMocks,
@@ -30,12 +31,6 @@ export interface ProxyOptions {
   ip: string;
 }
 
-interface UpstreamProxyConfig {
-  host: string;
-  port: number;
-  scheme: 'http' | 'https';
-}
-
 export class Proxy {
   private _started = false;
   private _replayStarted = false;
@@ -44,7 +39,9 @@ export class Proxy {
 
   private readonly httpProxy: HttpProxy;
   private readonly recordingManager: RecordingManager;
-  private upstreamProxy?: UpstreamProxyConfig;
+  private proxyChainLocalUrl?: string;
+  private closeProxyChain?: (url: string, closeConnections?: boolean) => Promise<void>;
+  private upstreamAgent?: any;
 
   public isStarted(): boolean {
     return this._started;
@@ -62,31 +59,6 @@ export class Proxy {
     this.httpProxy = new HttpProxy();
     this.recordingManager = new RecordingManager(options);
     addDefaultMocks(this);
-
-    const upstreamEnv = process.env.UPSTREAM_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
-    if (upstreamEnv) {
-      try {
-        let host: string | undefined;
-        let port: number | undefined;
-        let scheme: 'http' | 'https' = 'http';
-        if (/^https?:\/\//i.test(upstreamEnv)) {
-          const u = new URL(upstreamEnv);
-          host = u.hostname;
-          port = Number(u.port || (u.protocol === 'https:' ? 443 : 80));
-          scheme = (u.protocol === 'https:' ? 'https' : 'http');
-        } else {
-          const [h, p] = upstreamEnv.split(':');
-          host = h;
-          port = Number(p);
-        }
-        if (host && Number.isFinite(port)) {
-          this.upstreamProxy = { host, port: port as number, scheme };
-          log.info(`Upstream proxy configured: ${scheme}://${host}:${port}`);
-        }
-      } catch (e) {
-        log.error(`Failed to parse upstream proxy env: ${String(e)}`);
-      }
-    }
   }
 
   public getRecordingManager(): RecordingManager {
@@ -119,6 +91,13 @@ export class Proxy {
       forceSNI: true,
     };
 
+    await this.setupProxyChainUpstream();
+    if (this.upstreamAgent) {
+      proxyOptions.httpAgent = this.upstreamAgent;
+      proxyOptions.httpsAgent = this.upstreamAgent;
+      log.info('Routing traffic via proxy-chain upstream agent');
+    }
+
     this.httpProxy.onRequest(
       RequestInterceptor((requestData: any) => {
         for (const sniffer of this.sniffers.values()) {
@@ -127,7 +106,6 @@ export class Proxy {
       })
     );
     this.httpProxy.onRequest(this.handleMockApiRequest.bind(this));
-    this.httpProxy.onRequest(this.applyUpstreamProxy.bind(this));
 
     this.httpProxy.onError((context, error, errorType) => {
       log.error(`${errorType}: ${error}`);
@@ -145,6 +123,14 @@ export class Proxy {
 
   public async stop(): Promise<void> {
     this.httpProxy.close();
+    if (this.proxyChainLocalUrl && this.closeProxyChain) {
+      try {
+        await this.closeProxyChain(this.proxyChainLocalUrl, true);
+        log.info('proxy-chain anonymized proxy closed');
+      } catch (e) {
+        log.warn(`Failed to close proxy-chain anonymized proxy: ${String(e)}`);
+      }
+    }
   }
 
   public addMock(mockConfig: MockConfig): string {
@@ -226,27 +212,23 @@ export class Proxy {
     }
   }
 
-  private async applyUpstreamProxy(ctx: IContext, next: () => void): Promise<void> {
-    if (this.upstreamProxy && ctx.proxyToServerRequestOptions) {
-      const originalHost = ctx.clientToProxyRequest.headers?.host;
-      const originalPath = ctx.clientToProxyRequest.url || '/';
-      if (originalHost) {
-        const targetScheme = ctx.isSSL ? 'https' : 'http';
-        const absoluteUrl = `${targetScheme}://${originalHost}${originalPath}`;
-
-        ctx.proxyToServerRequestOptions.host = this.upstreamProxy.host;
-        ctx.proxyToServerRequestOptions.port = this.upstreamProxy.port;
-        ctx.proxyToServerRequestOptions.path = absoluteUrl;
-
-        // Ensure we use the correct protocol and agent to talk to the proxy itself
-        // http-mitm-proxy chooses the underlying client (http/https) based on ctx.isSSL
-        // For HTTP proxies, force HTTP; for HTTPS proxies, force HTTPS
-        ctx.isSSL = this.upstreamProxy.scheme === 'https';
-        // @ts-ignore
-        ctx.proxyToServerRequestOptions.agent = undefined;
+  private async setupProxyChainUpstream(): Promise<void> {
+    const upstreamEnv = process.env.UPSTREAM_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+    if (!upstreamEnv) return;
+    try {
+      const proxyChain = require('proxy-chain');
+      if (!proxyChain || !proxyChain.anonymizeProxy) {
+        log.warn('proxy-chain not available; skipping upstream setup');
+        return;
       }
+      const localUrl: string = await proxyChain.anonymizeProxy(upstreamEnv);
+      this.proxyChainLocalUrl = localUrl;
+      this.closeProxyChain = proxyChain.closeAnonymizedProxy;
+      this.upstreamAgent = new ProxyAgent({ getProxyForUrl: () => localUrl });
+      log.info(`proxy-chain upstream initialized at ${localUrl}`);
+    } catch (e) {
+      log.error(`Failed to initialize proxy-chain upstream: ${String(e)}`);
     }
-    next();
   }
 
 
