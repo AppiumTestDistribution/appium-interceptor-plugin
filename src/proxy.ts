@@ -30,6 +30,11 @@ export interface ProxyOptions {
   ip: string;
 }
 
+interface UpstreamProxyConfig {
+  host: string;
+  port: number;
+}
+
 export class Proxy {
   private _started = false;
   private _replayStarted = false;
@@ -38,6 +43,7 @@ export class Proxy {
 
   private readonly httpProxy: HttpProxy;
   private readonly recordingManager: RecordingManager;
+  private upstreamProxy?: UpstreamProxyConfig;
 
   public isStarted(): boolean {
     return this._started;
@@ -55,6 +61,29 @@ export class Proxy {
     this.httpProxy = new HttpProxy();
     this.recordingManager = new RecordingManager(options);
     addDefaultMocks(this);
+
+    const upstreamEnv = process.env.UPSTREAM_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+    if (upstreamEnv) {
+      try {
+        let host: string | undefined;
+        let port: number | undefined;
+        if (/^https?:\/\//i.test(upstreamEnv)) {
+          const u = new URL(upstreamEnv);
+          host = u.hostname;
+          port = Number(u.port || (u.protocol === 'https:' ? 443 : 80));
+        } else {
+          const [h, p] = upstreamEnv.split(':');
+          host = h;
+          port = Number(p);
+        }
+        if (host && Number.isFinite(port)) {
+          this.upstreamProxy = { host, port: port as number };
+          log.info(`Upstream proxy configured: ${host}:${port}`);
+        }
+      } catch (e) {
+        log.error(`Failed to parse upstream proxy env: ${String(e)}`);
+      }
+    }
   }
 
   public getRecordingManager(): RecordingManager {
@@ -95,6 +124,7 @@ export class Proxy {
       })
     );
     this.httpProxy.onRequest(this.handleMockApiRequest.bind(this));
+    this.httpProxy.onRequest(this.applyUpstreamProxy.bind(this));
 
     this.httpProxy.onError((context, error, errorType) => {
       log.error(`${errorType}: ${error}`);
@@ -192,6 +222,15 @@ export class Proxy {
       }
     }
   }
+
+  private async applyUpstreamProxy(ctx: IContext, next: () => void): Promise<void> {
+    if (this.upstreamProxy && ctx.proxyToServerRequestOptions) {
+      ctx.proxyToServerRequestOptions.host = this.upstreamProxy.host;
+      ctx.proxyToServerRequestOptions.port = this.upstreamProxy.port;
+    }
+    next();
+  }
+
 
   private async findMatchingMocks(ctx: IContext): Promise<MockConfig[]> {
     const request = ctx.clientToProxyRequest;
