@@ -33,6 +33,7 @@ export interface ProxyOptions {
 interface UpstreamProxyConfig {
   host: string;
   port: number;
+  scheme: 'http' | 'https';
 }
 
 export class Proxy {
@@ -67,18 +68,20 @@ export class Proxy {
       try {
         let host: string | undefined;
         let port: number | undefined;
+        let scheme: 'http' | 'https' = 'http';
         if (/^https?:\/\//i.test(upstreamEnv)) {
           const u = new URL(upstreamEnv);
           host = u.hostname;
           port = Number(u.port || (u.protocol === 'https:' ? 443 : 80));
+          scheme = (u.protocol === 'https:' ? 'https' : 'http');
         } else {
           const [h, p] = upstreamEnv.split(':');
           host = h;
           port = Number(p);
         }
         if (host && Number.isFinite(port)) {
-          this.upstreamProxy = { host, port: port as number };
-          log.info(`Upstream proxy configured: ${host}:${port}`);
+          this.upstreamProxy = { host, port: port as number, scheme };
+          log.info(`Upstream proxy configured: ${scheme}://${host}:${port}`);
         }
       } catch (e) {
         log.error(`Failed to parse upstream proxy env: ${String(e)}`);
@@ -225,8 +228,23 @@ export class Proxy {
 
   private async applyUpstreamProxy(ctx: IContext, next: () => void): Promise<void> {
     if (this.upstreamProxy && ctx.proxyToServerRequestOptions) {
-      ctx.proxyToServerRequestOptions.host = this.upstreamProxy.host;
-      ctx.proxyToServerRequestOptions.port = this.upstreamProxy.port;
+      const originalHost = ctx.clientToProxyRequest.headers?.host;
+      const originalPath = ctx.clientToProxyRequest.url || '/';
+      if (originalHost) {
+        const targetScheme = ctx.isSSL ? 'https' : 'http';
+        const absoluteUrl = `${targetScheme}://${originalHost}${originalPath}`;
+
+        ctx.proxyToServerRequestOptions.host = this.upstreamProxy.host;
+        ctx.proxyToServerRequestOptions.port = this.upstreamProxy.port;
+        ctx.proxyToServerRequestOptions.path = absoluteUrl;
+
+        // Ensure we use the correct protocol and agent to talk to the proxy itself
+        // http-mitm-proxy chooses the underlying client (http/https) based on ctx.isSSL
+        // For HTTP proxies, force HTTP; for HTTPS proxies, force HTTPS
+        ctx.isSSL = this.upstreamProxy.scheme === 'https';
+        // @ts-ignore
+        ctx.proxyToServerRequestOptions.agent = undefined;
+      }
     }
     next();
   }
