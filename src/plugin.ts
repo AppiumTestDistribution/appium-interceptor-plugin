@@ -133,7 +133,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       const proxy = proxyCache.get(sessionId);
       if (proxy) {
         const adb = driver.sessions[sessionId]?.adb;
-        await configureWifiProxy(adb, proxy.deviceUDID, false);
+        await configureWifiProxy(adb, proxy.deviceUDID, false, this.previousGlobalProxy);
         await cleanUpProxyServer(proxy);
       }
     }
