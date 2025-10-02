@@ -2,6 +2,8 @@
 
 Create the appium session by passing `appium:intercept : true` option in the desired capability. Once the session is successfully created, tests can manage the api mocking using below commands. 
 
+To route emulator traffic through another proxy, set one of the environment variables UPSTREAM_PROXY, HTTPS_PROXY, or HTTP_PROXY. All traffic from the emulator will then be forwarded to the specified upstream proxy.
+
 ### Mock Configuration
 Mock configuration is a json object that defines the specification for filtering and applying various updates to the api request and below is the structure for the config object.
 
