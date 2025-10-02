@@ -55,7 +55,7 @@ export class Proxy {
     this._replayStarted = true;
   }
 
-  constructor(private readonly options: ProxyOptions) {
+  constructor(public readonly options: ProxyOptions) {
     this.httpProxy = new HttpProxy();
     this.recordingManager = new RecordingManager(options);
     addDefaultMocks(this);
