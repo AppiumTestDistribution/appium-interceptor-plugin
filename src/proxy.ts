@@ -1,5 +1,6 @@
 import { MockConfig, RecordConfig, RequestInfo, SniffConfig } from './types';
 import { Proxy as HttpProxy, IContext, IProxyOptions } from 'http-mitm-proxy';
+import { ProxyAgent } from 'proxy-agent';
 import { v4 as uuid } from 'uuid';
 import {
   addDefaultMocks,
@@ -38,6 +39,9 @@ export class Proxy {
 
   private readonly httpProxy: HttpProxy;
   private readonly recordingManager: RecordingManager;
+  private proxyChainLocalUrl?: string;
+  private closeProxyChain?: (url: string, closeConnections?: boolean) => Promise<void>;
+  private upstreamAgent?: any;
 
   public isStarted(): boolean {
     return this._started;
@@ -87,6 +91,13 @@ export class Proxy {
       forceSNI: true,
     };
 
+    await this.setupProxyChainUpstream();
+    if (this.upstreamAgent) {
+      proxyOptions.httpAgent = this.upstreamAgent;
+      proxyOptions.httpsAgent = this.upstreamAgent;
+      log.info('Routing traffic via proxy-chain upstream agent');
+    }
+
     this.httpProxy.onRequest(
       RequestInterceptor((requestData: any) => {
         for (const sniffer of this.sniffers.values()) {
@@ -112,6 +123,14 @@ export class Proxy {
 
   public async stop(): Promise<void> {
     this.httpProxy.close();
+    if (this.proxyChainLocalUrl && this.closeProxyChain) {
+      try {
+        await this.closeProxyChain(this.proxyChainLocalUrl, true);
+        log.info('proxy-chain anonymized proxy closed');
+      } catch (e) {
+        log.warn(`Failed to close proxy-chain anonymized proxy: ${String(e)}`);
+      }
+    }
   }
 
   public addMock(mockConfig: MockConfig): string {
@@ -192,6 +211,26 @@ export class Proxy {
       }
     }
   }
+
+  private async setupProxyChainUpstream(): Promise<void> {
+    const upstreamEnv = process.env.UPSTREAM_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+    if (!upstreamEnv) return;
+    try {
+      const proxyChain = require('proxy-chain');
+      if (!proxyChain || !proxyChain.anonymizeProxy) {
+        log.warn('proxy-chain not available; skipping upstream setup');
+        return;
+      }
+      const localUrl: string = await proxyChain.anonymizeProxy(upstreamEnv);
+      this.proxyChainLocalUrl = localUrl;
+      this.closeProxyChain = proxyChain.closeAnonymizedProxy;
+      this.upstreamAgent = new ProxyAgent({ getProxyForUrl: () => localUrl });
+      log.info(`proxy-chain upstream initialized at ${localUrl}`);
+    } catch (e) {
+      log.error(`Failed to initialize proxy-chain upstream: ${String(e)}`);
+    }
+  }
+
 
   private async findMatchingMocks(ctx: IContext): Promise<MockConfig[]> {
     const request = ctx.clientToProxyRequest;

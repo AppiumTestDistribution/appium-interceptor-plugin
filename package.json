@@ -122,6 +122,8 @@
     "queue-typescript": "^1.0.1",
     "regex-parser": "^2.3.1",
     "uuid": "^11.1.0",
-    "yargs": "^18.0.0"
+    "yargs": "^18.0.0",
+    "proxy-chain": "2.5.9",
+    "proxy-agent": "6.5.0"
   }
 }
