@@ -32,7 +32,7 @@ export async function configureWifiProxy(
   proxy?: ProxyOptions
 ): Promise<string> {
   try {
-    const host = proxy?.ip ? `${proxy.ip}:${proxy.port}` : ':0';
+    const host = proxy ? `${proxy.ip}:${proxy.port}` : ':0';
 
     if (realDevice && proxy) {
       await adbExecWithDevice(adb, udid, ['reverse', `tcp:${proxy.port}`, `tcp:${proxy.port}`]);
@@ -56,7 +56,6 @@ export async function getGlobalProxyValue(
   udid: UDID
 ): Promise<ProxyOptions> {
   try {
-    
     const proxy = await adbExecWithDevice(adb, udid, [
       'shell',
       'settings',

@@ -8,11 +8,8 @@ import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './util
 import proxyCache from './proxy-cache';
 import logger from './logger';
 import log from './logger';
-import { ProxyOptions } from './proxy';
 
 export class AppiumInterceptorPlugin extends BasePlugin {
-
-  private previousGlobalProxy: ProxyOptions = {} as ProxyOptions
 
   static executeMethodMap = {
     'interceptor: addMock': {
@@ -102,12 +99,9 @@ export class AppiumInterceptorPlugin extends BasePlugin {
         return response;
       }
       const realDevice = await isRealDevice(adb, deviceUDID);
+      const currentGlobalProxy = await getGlobalProxyValue(adb, deviceUDID)
 
-      this.previousGlobalProxy = await getGlobalProxyValue(adb, deviceUDID)
-      log.info(`Current proxy: ${this.previousGlobalProxy}}`)
-
-
-      const proxy = await setupProxyServer(sessionId, deviceUDID, realDevice);
+      const proxy = await setupProxyServer(sessionId, deviceUDID, realDevice, currentGlobalProxy);
       await configureWifiProxy(adb, deviceUDID, realDevice, proxy.options);
       proxyCache.add(sessionId, proxy);
     }
@@ -119,9 +113,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     const proxy = proxyCache.get(sessionId);
     if (proxy) {
       const adb = driver.sessions[sessionId]?.adb;
-
-      log.info(`Set previous proxy settings`)
-      await configureWifiProxy(adb, proxy.deviceUDID, false, this.previousGlobalProxy);
+      await configureWifiProxy(adb, proxy.deviceUDID, false, proxy.previousGlobalProxy);
       await cleanUpProxyServer(proxy);
     }
     return next();
@@ -133,7 +125,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       const proxy = proxyCache.get(sessionId);
       if (proxy) {
         const adb = driver.sessions[sessionId]?.adb;
-        await configureWifiProxy(adb, proxy.deviceUDID, false, this.previousGlobalProxy);
+        await configureWifiProxy(adb, proxy.deviceUDID, false, proxy.previousGlobalProxy);
         await cleanUpProxyServer(proxy);
       }
     }

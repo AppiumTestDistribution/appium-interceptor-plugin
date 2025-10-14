@@ -9,7 +9,7 @@ import {
 } from '../types';
 import _ from 'lodash';
 import getPort from 'get-port';
-import { Proxy } from '../proxy';
+import { Proxy, ProxyOptions } from '../proxy';
 import ip from 'ip';
 import os from 'os';
 import path from 'path';
@@ -112,12 +112,13 @@ export function modifyResponseBody(ctx: IContext, mockConfig: MockConfig) {
 export async function setupProxyServer(
   sessionId: string,
   deviceUDID: string,
-  isRealDevice: boolean
+  isRealDevice: boolean,
+  currentGlobalProxy?: ProxyOptions
 ) {
   const certificatePath = prepareCertificate(sessionId);
   const port = await getPort();
   const _ip = isRealDevice ? 'localhost' : ip.address('public', 'ipv4');
-  const proxy = new Proxy({ deviceUDID, sessionId, certificatePath, port, ip: _ip });
+  const proxy = new Proxy({ deviceUDID, sessionId, certificatePath, port, ip: _ip, previousGlobalProxy: currentGlobalProxy });
   await proxy.start();
   if (!proxy.isStarted()) {
     throw new Error('Unable to start the proxy server');
