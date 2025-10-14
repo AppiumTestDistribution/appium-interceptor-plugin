@@ -133,8 +133,8 @@ export async function cleanUpProxyServer(proxy: Proxy) {
 
 function prepareCertificate(sessionId: string, certDirectory: string) {
   const sessionCertDirectory = path.join(os.tmpdir(), sessionId);
-  if(fs.existsSync(certDirectory)){
-    log.errorWithException(`Error certDirectory doesn't exist (${certDirectory})`);
+  if(!fs.existsSync(certDirectory)){
+    throw new Error(`Error certDirectory doesn't exist (${certDirectory})`);
   }
   fs.copySync(certDirectory, sessionCertDirectory);
   return sessionCertDirectory;
