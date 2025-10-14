@@ -75,7 +75,11 @@
       "$schema": "http://json-schema.org/draft-07/schema",
       "additionalProperties": false,
       "description": "Appium configuration schema for the interceptor plugin.",
-      "properties": {},
+      "properties": {
+        "certdirectory": {
+          "type": "string"
+        }
+      },
       "title": "Appium interceptor plugin",
       "type": "object"
     },

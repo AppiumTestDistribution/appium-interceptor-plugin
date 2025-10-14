@@ -2,6 +2,7 @@ import { BasePlugin } from 'appium/plugin';
 import http from 'http';
 import { Application } from 'express';
 import { CliArg, ISessionCapability, MockConfig, RecordConfig, RequestInfo, ReplayConfig, SniffConfig } from './types';
+import { DefaultPluginArgs, IPluginArgs } from './interfaces';
 import _ from 'lodash';
 import { configureWifiProxy, isRealDevice } from './utils/adb';
 import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
@@ -10,6 +11,7 @@ import logger from './logger';
 import log from './logger';
 
 export class AppiumInterceptorPlugin extends BasePlugin {
+  private pluginArgs: IPluginArgs = Object.assign({}, DefaultPluginArgs);
   static executeMethodMap = {
     'interceptor: addMock': {
       command: 'addMock',
@@ -68,7 +70,9 @@ export class AppiumInterceptorPlugin extends BasePlugin {
   };
 
   constructor(name: string, cliArgs: CliArg) {
+    log.debug(`📱 Plugin Args: ${JSON.stringify(cliArgs)}`);
     super(name, cliArgs);
+    this.pluginArgs = Object.assign({}, DefaultPluginArgs, cliArgs as unknown as IPluginArgs);
   }
 
   static async updateServer(expressApp: Application, httpServer: http.Server, cliArgs: CliArg) {}
@@ -89,6 +93,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     const mergedCaps = { ...caps.alwaysMatch, ..._.get(caps, 'firstMatch[0]', {}) };
     const interceptFlag = mergedCaps['appium:intercept'];
     const { deviceUDID, platformName } = response.value[1];
+    const certDirectory = this.pluginArgs.certdirectory;
     const sessionId = response.value[0];
     const adb = driver.sessions[sessionId]?.adb;
 
@@ -98,7 +103,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
         return response;
       }
       const realDevice = await isRealDevice(adb, deviceUDID);
-      const proxy = await setupProxyServer(sessionId, deviceUDID, realDevice);
+      const proxy = await setupProxyServer(sessionId, deviceUDID, realDevice, certDirectory);
       await configureWifiProxy(adb, deviceUDID, realDevice, proxy);
       proxyCache.add(sessionId, proxy);
     }
