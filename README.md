@@ -22,6 +22,14 @@ The plugin will not be active unless turned on when invoking the Appium server:
 
 `appium server -ka 800 --use-plugins=appium-interceptor -pa /wd/hub`
 
+## Custom certificate
+
+If you need to use a custom certificate, it can be done by passing `certdirectory` as an argument of the plugin:
+
+`appium server -ka 800 --use-plugins=appium-interceptor --plugin-appium-interceptor-certdirectory="<YOUR DIRECTORY>" -pa /wd/hub`
+
+Please keep the same directory structure as the existing certificate folder.
+
 ## what does this plugin do?
 
 For every appium session, interceptor plugin will start a proxy server and updates the device proxy settings to pass all network traffic to proxy server. Mocking is disabled by default and can be enabled from the test by passing `appium:intercept : true` in the desired capability while creating a new appium session.
