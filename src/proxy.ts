@@ -29,6 +29,7 @@ export interface ProxyOptions {
   certificatePath: string;
   port: number;
   ip: string;
+  previousGlobalProxy?: ProxyOptions;
 }
 
 export class Proxy {
@@ -55,7 +56,7 @@ export class Proxy {
     this._replayStarted = true;
   }
 
-  constructor(private readonly options: ProxyOptions) {
+  constructor(public readonly options: ProxyOptions) {
     this.httpProxy = new HttpProxy();
     this.recordingManager = new RecordingManager(options);
     addDefaultMocks(this);
@@ -79,6 +80,10 @@ export class Proxy {
 
   public get certificatePath(): string {
     return this.options.certificatePath;
+  }
+
+  public get previousGlobalProxy(): ProxyOptions | undefined {
+    return this.options.previousGlobalProxy ?? undefined
   }
 
   public async start(): Promise<boolean> {
