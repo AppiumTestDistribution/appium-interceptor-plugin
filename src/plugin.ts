@@ -4,7 +4,7 @@ import { Application } from 'express';
 import { CliArg, ISessionCapability, MockConfig, RecordConfig, RequestInfo, ReplayConfig, SniffConfig } from './types';
 import { DefaultPluginArgs, IPluginArgs } from './interfaces';
 import _ from 'lodash';
-import { configureWifiProxy, isRealDevice } from './utils/adb';
+import { configureWifiProxy, isRealDevice, getGlobalProxyValue } from './utils/adb';
 import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
 import proxyCache from './proxy-cache';
 import logger from './logger';
@@ -103,8 +103,9 @@ export class AppiumInterceptorPlugin extends BasePlugin {
         return response;
       }
       const realDevice = await isRealDevice(adb, deviceUDID);
-      const proxy = await setupProxyServer(sessionId, deviceUDID, realDevice, certDirectory);
-      await configureWifiProxy(adb, deviceUDID, realDevice, proxy);
+      const currentGlobalProxy = await getGlobalProxyValue(adb, deviceUDID)
+      const proxy = await setupProxyServer(sessionId, deviceUDID, realDevice, certDirectory, currentGlobalProxy);
+      await configureWifiProxy(adb, deviceUDID, realDevice, proxy.options);
       proxyCache.add(sessionId, proxy);
     }
     log.info("Creating session for appium interceptor");
@@ -115,7 +116,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     const proxy = proxyCache.get(sessionId);
     if (proxy) {
       const adb = driver.sessions[sessionId]?.adb;
-      await configureWifiProxy(adb, proxy.deviceUDID, false);
+      await configureWifiProxy(adb, proxy.deviceUDID, false, proxy.previousGlobalProxy);
       await cleanUpProxyServer(proxy);
     }
     return next();
@@ -127,7 +128,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       const proxy = proxyCache.get(sessionId);
       if (proxy) {
         const adb = driver.sessions[sessionId]?.adb;
-        await configureWifiProxy(adb, proxy.deviceUDID, false);
+        await configureWifiProxy(adb, proxy.deviceUDID, false, proxy.previousGlobalProxy);
         await cleanUpProxyServer(proxy);
       }
     }

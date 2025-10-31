@@ -83,7 +83,7 @@ async function verifyDeviceConnection(adb: ADBInstance, udid: UDID, certDirector
   const realDevice = await isRealDevice(adb, udid);
   const proxy = await setupProxyServer(uuid(), udid, realDevice, certDirectory);
   addMock(proxy);
-  await configureWifiProxy(adb, udid, realDevice, proxy);
+  await configureWifiProxy(adb, udid, realDevice, proxy.options);
   await openUrl(adb, udid, MOCK_BACKEND_URL);
 }
 
