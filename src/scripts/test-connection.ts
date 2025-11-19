@@ -7,13 +7,16 @@ import { ADBInstance, UDID, configureWifiProxy, isRealDevice, openUrl } from '..
 import { v4 as uuid } from 'uuid';
 import { setupProxyServer } from '../utils/proxy';
 import { Proxy } from '../proxy';
+import path from 'path';
 
 type VerifyOptions = {
   udid: string;
+  certdirectory: string;
 };
 
 const defaultOptions: VerifyOptions = {
   udid: '',
+  certdirectory: path.join(__dirname, '..', 'certificate'),
 };
 
 const MOCK_BACKEND_HTML = `<html><head><title>Appium Mock</title></head>
@@ -76,9 +79,9 @@ async function addMock(proxy: Proxy) {
   });
 }
 
-async function verifyDeviceConnection(adb: ADBInstance, udid: UDID) {
+async function verifyDeviceConnection(adb: ADBInstance, udid: UDID, certDirectory: string) {
   const realDevice = await isRealDevice(adb, udid);
-  const proxy = await setupProxyServer(uuid(), udid, realDevice);
+  const proxy = await setupProxyServer(uuid(), udid, realDevice, certDirectory);
   addMock(proxy);
   await configureWifiProxy(adb, udid, realDevice, proxy.options);
   await openUrl(adb, udid, MOCK_BACKEND_URL);
@@ -102,7 +105,7 @@ async function main() {
   const options = getOptions();
   const udid = await pickDeviceToTest(adb, options);
   await registerExitHook(adb, udid);
-  await verifyDeviceConnection(adb, udid);
+  await verifyDeviceConnection(adb, udid, options.certdirectory);
 }
 
 main().catch(console.log);

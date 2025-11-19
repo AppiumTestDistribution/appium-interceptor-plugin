@@ -13,7 +13,6 @@ import { Proxy, ProxyOptions } from '../proxy';
 import ip from 'ip';
 import os from 'os';
 import path from 'path';
-import config from '../config';
 import fs from 'fs-extra';
 import { minimatch } from 'minimatch';
 import http from 'http';
@@ -113,9 +112,10 @@ export async function setupProxyServer(
   sessionId: string,
   deviceUDID: string,
   isRealDevice: boolean,
+  certDirectory: string,
   currentGlobalProxy?: ProxyOptions
 ) {
-  const certificatePath = prepareCertificate(sessionId);
+  const certificatePath = prepareCertificate(sessionId, certDirectory);
   const port = await getPort();
   const _ip = isRealDevice ? 'localhost' : ip.address('public', 'ipv4');
   const proxy = new Proxy({ deviceUDID, sessionId, certificatePath, port, ip: _ip, previousGlobalProxy: currentGlobalProxy });
@@ -132,9 +132,12 @@ export async function cleanUpProxyServer(proxy: Proxy) {
   fs.rmdirSync(proxy.certificatePath, { recursive: true, force: true });
 }
 
-function prepareCertificate(sessionId: string) {
+function prepareCertificate(sessionId: string, certDirectory: string) {
   const sessionCertDirectory = path.join(os.tmpdir(), sessionId);
-  fs.copySync(config.certDirectory, sessionCertDirectory);
+  if(!fs.existsSync(certDirectory)){
+    throw new Error(`Error certDirectory doesn't exist (${certDirectory})`);
+  }
+  fs.copySync(certDirectory, sessionCertDirectory);
   return sessionCertDirectory;
 }
 
@@ -204,7 +207,7 @@ export function doesUrlMatch(pattern: UrlPattern, url: string) {
       ? jsonOrStringUrl.test(url)
       : minimatch(url, jsonOrStringUrl);
   } catch (err) {
-    log.error(`Error validaing url ${pattern} against url ${url}`);
+    log.error(`Error validating url ${pattern} against url ${url}`);
     return false;
   }
 }
