@@ -34,11 +34,11 @@ Please keep the same directory structure as the existing certificate folder.
 
 If you need to limit the calls going through the proxy, it can be done by passing `whitelisteddomains` and `blacklisteddomains` as an argument of the plugin:
 
-Example of `whitelisteddomains`: only the call in the domain `*.mydomain.com` got through the proxy.
+Example of `whitelisteddomains`: only the calls for the domain `*.mydomain.com` got through the proxy.
 
 `appium server -ka 800 --use-plugins=appium-interceptor --plugin-appium-interceptor-whitelisteddomains='["*.mydomain.com"]' -pa /wd/hub`
 
-Example of `blacklisteddomains`: all the call go through the proxy, except the one from `*.otherdomain.com`.
+Example of `blacklisteddomains`: all the calls go through the proxy, except the calls for `*.otherdomain.com`.
 
 `appium server -ka 800 --use-plugins=appium-interceptor --plugin-appium-interceptor-blacklisteddomains='["*.otherdomain.com"]' -pa /wd/hub`
 
