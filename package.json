@@ -78,6 +78,12 @@
       "properties": {
         "certdirectory": {
           "type": "string"
+        },
+        "whitelisteddomains": {
+          "type": "string"
+        },
+        "blacklisteddomains": {
+          "type": "string"
         }
       },
       "title": "Appium interceptor plugin",

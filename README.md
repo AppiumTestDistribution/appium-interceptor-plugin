@@ -30,6 +30,20 @@ If you need to use a custom certificate, it can be done by passing `certdirector
 
 Please keep the same directory structure as the existing certificate folder.
 
+## Whitelist/Blacklist
+
+If you need to limit the calls going through the proxy, it can be done by passing `whitelisteddomains` and `blacklisteddomains` as an argument of the plugin:
+
+Example of `whitelisteddomains`: only the call in the domain `*.mydomain.com` got through the proxy.
+
+`appium server -ka 800 --use-plugins=appium-interceptor --plugin-appium-interceptor-whitelisteddomains='["*.mydomain.com"]' -pa /wd/hub`
+
+Example of `blacklisteddomains`: all the call go through the proxy, except the one from `*.otherdomain.com`.
+
+`appium server -ka 800 --use-plugins=appium-interceptor --plugin-appium-interceptor-blacklisteddomains='["*.otherdomain.com"]' -pa /wd/hub`
+
+Note: `whitelisteddomains` and `blacklisteddomains` are two different approach and are not supposed to be used together. If both are present, `blacklisteddomains` will be ignored.
+
 ## what does this plugin do?
 
 For every appium session, interceptor plugin will start a proxy server and updates the device proxy settings to pass all network traffic to proxy server. Mocking is disabled by default and can be enabled from the test by passing `appium:intercept : true` in the desired capability while creating a new appium session.

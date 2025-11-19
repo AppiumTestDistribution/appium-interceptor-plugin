@@ -113,12 +113,23 @@ export async function setupProxyServer(
   deviceUDID: string,
   isRealDevice: boolean,
   certDirectory: string,
-  currentGlobalProxy?: ProxyOptions
+  currentGlobalProxy?: ProxyOptions,
+  whitelistedDomains?: string[],
+  blacklistedDomains?: string[]
 ) {
   const certificatePath = prepareCertificate(sessionId, certDirectory);
   const port = await getPort();
   const _ip = isRealDevice ? 'localhost' : ip.address('public', 'ipv4');
-  const proxy = new Proxy({ deviceUDID, sessionId, certificatePath, port, ip: _ip, previousGlobalProxy: currentGlobalProxy });
+    const proxy = new Proxy({
+    deviceUDID,
+    sessionId,
+    certificatePath,
+    port,
+    ip: _ip,
+    previousGlobalProxy: currentGlobalProxy,
+    whitelistedDomains,
+    blacklistedDomains,
+  });
   await proxy.start();
   if (!proxy.isStarted()) {
     throw new Error('Unable to start the proxy server');

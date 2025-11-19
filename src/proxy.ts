@@ -1,5 +1,6 @@
 import { MockConfig, RecordConfig, RequestInfo, SniffConfig } from './types';
 import { Proxy as HttpProxy, IContext, IProxyOptions } from 'http-mitm-proxy';
+import * as net from 'net';
 import { ProxyAgent } from 'proxy-agent';
 import { v4 as uuid } from 'uuid';
 import {
@@ -30,6 +31,8 @@ export interface ProxyOptions {
   port: number;
   ip: string;
   previousGlobalProxy?: ProxyOptions;
+  whitelistedDomains?: string[];
+  blacklistedDomains?: string[];
 }
 
 export class Proxy {
@@ -102,6 +105,56 @@ export class Proxy {
       proxyOptions.httpsAgent = this.upstreamAgent;
       log.info('Routing traffic via proxy-chain upstream agent');
     }
+
+    this.httpProxy.onConnect((req, clientToProxySocket, head, callback) => {
+      const [hostname, port] = req.url!.split(':');
+      const whitelistedDomains = this.options.whitelistedDomains ?? [];
+      const blacklistedDomains = this.options.blacklistedDomains ?? [];
+
+      let shouldIntercept = true;
+      if (whitelistedDomains.length > 0) {
+        shouldIntercept = whitelistedDomains.some((domain) => doesUrlMatch(domain, hostname));
+      } else if (blacklistedDomains.length > 0) {
+        shouldIntercept = !blacklistedDomains.some((domain) => doesUrlMatch(domain, hostname));
+      }
+      if (shouldIntercept) {
+        return callback();
+      } else {
+        clientToProxySocket.on('error', (err) => {
+          log.error(`Client socket error for ${hostname}: ${err.message}`);
+        });
+
+        const proxyToServerSocket = net.connect(
+          {
+            host: hostname,
+            port: Number(port || 80),
+          },
+          () => {
+            clientToProxySocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+            if (head && head.length > 0) {
+              proxyToServerSocket.write(head);
+            }
+            proxyToServerSocket.pipe(clientToProxySocket);
+            clientToProxySocket.pipe(proxyToServerSocket);
+          }
+        );
+
+        proxyToServerSocket.on('close', () => {
+          clientToProxySocket.end();
+        });
+
+        clientToProxySocket.on('close', () => {
+          proxyToServerSocket.end();
+        });
+
+        proxyToServerSocket.on('error', (err) => {
+          log.error(`[Tunnel] Server socket error for ${hostname}: ${err.message}`);
+          clientToProxySocket.end();
+        });
+
+        return;
+      }
+    });
 
     this.httpProxy.onRequest(
       RequestInterceptor((requestData: any) => {
