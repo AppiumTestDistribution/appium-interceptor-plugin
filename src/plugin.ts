@@ -67,6 +67,10 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       command: 'stopReplaying',
       params: { optional: ['id'] },
     },
+
+    'interceptor: getProxyServerOptions': {
+      command: 'getProxyServerOptions',
+    },    
   };
 
   constructor(name: string, cliArgs: CliArg) {
@@ -250,6 +254,15 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     log.info("Initiating stop replaying traffic");
     proxy.getRecordingManager().stopReplay(id);
   }
+
+  async getProxyServerOptions(next: any, driver: any): Promise<string> {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (!proxy) {
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
+    }
+    return JSON.stringify(proxy.options);
+  }  
 
   async execute(next: any, driver: any, script: any, args: any) {
     return await this.executeMethod(next, driver, script, args);
