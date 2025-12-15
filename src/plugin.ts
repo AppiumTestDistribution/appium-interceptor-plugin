@@ -4,7 +4,7 @@ import { Application } from 'express';
 import { CliArg, ISessionCapability, MockConfig, RecordConfig, RequestInfo, ReplayConfig, SniffConfig } from './types';
 import { DefaultPluginArgs, IPluginArgs } from './interfaces';
 import _ from 'lodash';
-import { configureWifiProxy, isRealDevice, getGlobalProxyValue, getAdbReverseTunnels } from './utils/adb';
+import { configureWifiProxy, isRealDevice, getCurrentWifiProxyConfig, getAdbReverseTunnels } from './utils/adb';
 import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
 import proxyCache from './proxy-cache';
 import logger from './logger';
@@ -107,8 +107,8 @@ export class AppiumInterceptorPlugin extends BasePlugin {
         return response;
       }
       const realDevice = await isRealDevice(adb, deviceUDID);
-      const currentGlobalProxy = await getGlobalProxyValue(adb, deviceUDID)
-      const proxy = await setupProxyServer(sessionId, deviceUDID, realDevice, certDirectory, currentGlobalProxy);
+      const currentWifiProxyConfig = await getCurrentWifiProxyConfig(adb, deviceUDID)
+      const proxy = await setupProxyServer(sessionId, deviceUDID, realDevice, certDirectory, currentWifiProxyConfig);
       await configureWifiProxy(adb, deviceUDID, realDevice, proxy.options);
       proxyCache.add(sessionId, proxy);
     }
