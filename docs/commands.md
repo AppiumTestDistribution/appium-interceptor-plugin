@@ -398,3 +398,36 @@ Below code shows how to add the mock and get the id
                         new HashMap() {{put("config", config); }});
 
 ```
+
+### interceptor: getProxyState
+
+Returns the current health and configuration state of both the interceptor proxy and the ADB device under test. This is useful for diagnostic purposes to verify if the proxy is running correctly and if the device is properly connected via ADB reverse tunnels. It can be used to monitor proxy state on client side.
+
+#### Example:
+
+```javascript
+  const state = await driver.execute("interceptor: getProxyState");
+  console.log(JSON.parse(state));
+```
+
+#### Returns:
+
+getProxyState will return a JSON string containing details about the proxy server and the ADB device status.
+  
+```json
+{
+  "proxyServerStatus": {
+    "isRegistered": true, // Indicates if the proxy exists in the internal cache
+    "isStarted": true, // Indicates if the proxy server is currently running
+    "deviceUDID": "R5CY127XBWB",
+    "sessionId": "8e902882-ce19-44f6-90ca-975b167f94ca",
+    "certificatePath": "/var/folders/.../8e902882-ce19-44f6-90ca-975b167f94ca",
+    "port": 59046,
+    "ip": "localhost"
+  },
+  "adbDeviceStatus": {
+    "udid": "R5CY127XBWB",
+    "activeAdbReverseTunnels": "UsbFfs tcp:56982 tcp:56982" // Current active reverse tunnels on the device
+  }
+}
+```

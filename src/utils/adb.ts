@@ -83,6 +83,30 @@ export async function getGlobalProxyValue(
   }  
 }
 
+/**
+ * Retrieves the list of all active ADB reverse port forwardings for a specific device.
+ * * This method executes 'adb reverse --list' to identify which device ports are 
+ * currently bridged to the host machine. It is essential for diagnosing 
+ * connectivity between the mobile device and local proxy servers.
+ *
+ * @param adb - The ADB instance provided by the Appium driver.
+ * @param udid - The Unique Device Identifier (UDID) of the target Android device.
+ * @returns A Promise resolving to the raw string output of the 'adb reverse --list' command.
+ * @throws {Error} If the command fails to execute or the device is unreachable.
+ */
+export async function getAdbReverseTunnels(
+  adb: ADBInstance,
+  udid: UDID
+): Promise<string> {
+  try {
+    return await adbExecWithDevice(adb, udid, [
+      'reverse',
+      '--list',
+    ]);
+  } catch(error: any) {
+    throw new Error(`Failed to list active reverse tunnels for device ${udid}: ${error.message}`);
+  }
+}
 
 export async function openUrl(adb: ADBInstance, udid: UDID, url: string) {
   await adbExecWithDevice(adb, udid, [
