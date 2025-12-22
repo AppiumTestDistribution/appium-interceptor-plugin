@@ -1,6 +1,12 @@
 ## Appium interceptor commands
 
-Create the appium session by passing `appium:intercept : true` option in the desired capability. Once the session is successfully created, tests can manage the api mocking using below commands. 
+To enable network interception, configure your Appium session using the `appium:startProxyAutomatically` capability. Depending on your configuration, you can manage the proxy and mocking as follows:
+
+🔸 ***Automatic Mode***: Set `appium:startProxyAutomatically` to `true` in your desired capabilities. The plugin will immediately initialize the proxy and configure the device upon session start.
+
+🔸 ***Manual Mode***: If the capability is set to false (default), you must explicitly trigger the proxy initialization using the `startProxy` command during your test.
+
+👉 Once the proxy is successfully started (either automatically or manually), you can manage API mocking, recording, and sniffing using the commands detailed below.
 
 To route emulator traffic through another proxy, set one of the environment variables UPSTREAM_PROXY, HTTPS_PROXY, or HTTP_PROXY. All traffic from the emulator will then be forwarded to the specified upstream proxy.
 
@@ -38,16 +44,34 @@ Mock configuration is a json object that defines the specification for filtering
 
 ## Commands:
 
+### interceptor: startProxy / stopProxy
+
+These commands allow you to manually manage the proxy lifecycle during a test session. This is the preferred method when `appium:startProxyAutomatically` is set to `false`, or if you need to reset the network configuration on-the-fly.
+
+> ***Note:*** Even when using these manual commands, the plugin provides **smart cleanup**: it will automatically stop the proxy and restore your previous device settings when the session ends or crashes.
+
+#### Example:
+
+***Note:*** Below example uses wedriver.io javascript client. For Java client you need to use `((JavascriptExecutor) driver).executeScript()` for executing commands instead of `driver.execute()`
+
+```javascript
+// Manually starting the proxy
+await driver.execute("interceptor: startProxy");
+
+// ... perform your intercepted tests ...
+
+// Manually stopping the proxy
+// This will revert your device WiFi settings to their original state
+await driver.execute("interceptor: stopProxy");
+```
+
 ### interceptor: addMock
 
 Add a new mock specification for intercepting and updating the request. The command will returns a unique id for each mock which can be used in future to delete the mock at any point in the test.
 
 #### Example:
 
-
 ***Note:*** Below example uses wedriver.io javascript client. For Java client you need to use `((JavascriptExecutor) driver).executeScript()` for executing commands instead of `driver.execute()`
-
-
 
 ```javascript
  const authorizationMock = await driver.execute("interceptor: addMock", {
