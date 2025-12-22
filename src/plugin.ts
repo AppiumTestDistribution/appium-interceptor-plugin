@@ -4,7 +4,7 @@ import { Application } from 'express';
 import { CliArg, ISessionCapability, MockConfig, RecordConfig, RequestInfo, ReplayConfig, SniffConfig } from './types';
 import { DefaultPluginArgs, IPluginArgs } from './interfaces';
 import _ from 'lodash';
-import { configureWifiProxy, isRealDevice, getGlobalProxyValue } from './utils/adb';
+import { configureWifiProxy, isRealDevice, getGlobalProxyValue, getAdbReverseTunnels } from './utils/adb';
 import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
 import proxyCache from './proxy-cache';
 import logger from './logger';
@@ -66,6 +66,10 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     'interceptor: stopReplaying': {
       command: 'stopReplaying',
       params: { optional: ['id'] },
+    },
+
+    'interceptor: getProxyState': {
+      command: 'getProxyState',
     },
   };
 
@@ -249,6 +253,39 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     }
     log.info("Initiating stop replaying traffic");
     proxy.getRecordingManager().stopReplay(id);
+  }
+
+  /**
+   * Aggregates the current health and configuration state of the proxy system.
+   * * This method performs a dual-layer diagnostic:
+   * 1. Host Layer: Checks if the proxy instance exists in the cache and verifies its execution status.
+   * 2. Transport Layer: Queries the physical device via ADB to list active reverse tunnels.
+   * * It is primarily used to determine if a connectivity issue originates from the
+   * Node.js server (Host) or the ADB bridge/USB connection (Device).
+   *
+   * @param next - The next middleware or handler in the execution chain (if applicable).
+   * @param driver - The Appium driver instance containing the ADB controller and session ID.
+   * @returns A Promise resolving to a JSON string representing the combined state of the proxy and ADB tunnels.
+   */
+  async getProxyState(next: any, driver: any): Promise<string> {
+    const adb = driver.adb;
+    const udid = adb.curDeviceId;
+    const adbReverseTunnels = await getAdbReverseTunnels(adb, udid);
+    const proxy = proxyCache.get(driver.sessionId);
+    const proxyServerStatus = {
+      isRegistered: !!proxy,
+      isStarted: proxy ? proxy.isStarted() : false,
+      ...proxy?.options,
+    };
+    const adbDeviceStatus = {
+      udid: udid,
+      activeAdbReverseTunnels: adbReverseTunnels,
+    };
+    const proxyState = {
+      proxyServerStatus: proxyServerStatus,
+      adbDeviceStatus: adbDeviceStatus,
+    };
+    return JSON.stringify(proxyState);
   }
 
   async execute(next: any, driver: any, script: any, args: any) {
