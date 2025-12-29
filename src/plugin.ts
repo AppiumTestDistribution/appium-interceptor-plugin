@@ -1,10 +1,24 @@
 import { BasePlugin } from 'appium/plugin';
 import http from 'http';
 import { Application } from 'express';
-import { CliArg, ISessionCapability, MockConfig, RecordConfig, RequestInfo, ReplayConfig, SniffConfig } from './types';
+import {
+  CliArg,
+  ISessionCapability,
+  MockConfig,
+  RecordConfig,
+  RequestInfo,
+  ReplayConfig,
+  SniffConfig,
+} from './types';
 import { DefaultPluginArgs, IPluginArgs } from './interfaces';
 import _ from 'lodash';
-import { configureWifiProxy, isRealDevice, getGlobalProxyValue } from './utils/adb';
+import {
+  configureWifiProxy,
+  isRealDevice,
+  getCurrentWifiProxyConfig,
+  getAdbReverseTunnels,
+  removeReverseTunnel,
+} from './utils/adb';
 import { cleanUpProxyServer, parseJson, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
 import proxyCache from './proxy-cache';
 import logger from './logger';
@@ -67,6 +81,10 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       command: 'stopReplaying',
       params: { optional: ['id'] },
     },
+
+    'interceptor: getProxyState': {
+      command: 'getProxyState',
+    },
   };
 
   constructor(name: string, cliArgs: CliArg) {
@@ -82,7 +100,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     driver: any,
     jwpDesCaps: any,
     jwpReqCaps: any,
-    caps: ISessionCapability
+    caps: ISessionCapability,
   ) {
     const response = await next();
     //If session creation failed
@@ -111,25 +129,27 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     const adb = driver.sessions[sessionId]?.adb;
 
     if (interceptFlag && platformName.toLowerCase().trim() === 'android') {
-      if(!adb) {
-        log.info(`Unable to find adb instance from session ${sessionId}. So skipping api interception.`);
+      if (!adb) {
+        log.info(
+          `Unable to find adb instance from session ${sessionId}. So skipping api interception.`,
+        );
         return response;
       }
       const realDevice = await isRealDevice(adb, deviceUDID);
-      const currentGlobalProxy = await getGlobalProxyValue(adb, deviceUDID)
+      const currentWifiProxyConfig = await getCurrentWifiProxyConfig(adb, deviceUDID);
       const proxy = await setupProxyServer(
         sessionId,
         deviceUDID,
         realDevice,
         certDirectory,
-        currentGlobalProxy,
+        currentWifiProxyConfig,
         whitelistedDomains,
         blacklistedDomains
       );
       await configureWifiProxy(adb, deviceUDID, realDevice, proxy.options);
       proxyCache.add(sessionId, proxy);
     }
-    log.info("Creating session for appium interceptor");
+    log.info('Creating session for appium interceptor');
     return response;
   }
 
@@ -137,7 +157,9 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     const proxy = proxyCache.get(sessionId);
     if (proxy) {
       const adb = driver.sessions[sessionId]?.adb;
-      await configureWifiProxy(adb, proxy.deviceUDID, false, proxy.previousGlobalProxy);
+      const deviceUDID = proxy.deviceUDID;
+      await configureWifiProxy(adb, deviceUDID, false, proxy.previousGlobalProxy);
+      await removeReverseTunnel(adb, deviceUDID, proxy.options.port);
       await cleanUpProxyServer(proxy);
     }
     return next();
@@ -149,7 +171,9 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       const proxy = proxyCache.get(sessionId);
       if (proxy) {
         const adb = driver.sessions[sessionId]?.adb;
-        await configureWifiProxy(adb, proxy.deviceUDID, false, proxy.previousGlobalProxy);
+        const deviceUDID = proxy.deviceUDID;
+        await configureWifiProxy(adb, deviceUDID, false, proxy.previousGlobalProxy);
+        await removeReverseTunnel(adb, deviceUDID, proxy.options.port);
         await cleanUpProxyServer(proxy);
       }
     }
@@ -210,8 +234,8 @@ export class AppiumInterceptorPlugin extends BasePlugin {
   async getInterceptedData(next: any, driver: any, id: any): Promise<RequestInfo[]> {
     const proxy = proxyCache.get(driver.sessionId);
     if (!proxy) {
-        logger.error('Proxy is not running');
-        throw new Error('Proxy is not active for current session');
+      logger.error('Proxy is not running');
+      throw new Error('Proxy is not active for current session');
     }
 
     log.info(`Getting intercepted requests for listener with id: ${id}`);
@@ -251,7 +275,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     return proxy.removeSniffer(true, id);
   }
 
-  async startReplaying(next:any, driver:any, replayConfig: ReplayConfig) {
+  async startReplaying(next: any, driver: any, replayConfig: ReplayConfig) {
     const proxy = proxyCache.get(driver.sessionId);
     if (!proxy) {
       logger.error('Proxy is not running');
@@ -262,14 +286,47 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     return proxy.getRecordingManager().replayTraffic(replayConfig);
   }
 
-  async stopReplaying(next: any, driver:any, id:any) {
+  async stopReplaying(next: any, driver: any, id: any) {
     const proxy = proxyCache.get(driver.sessionId);
     if (!proxy) {
       logger.error('Proxy is not running');
       throw new Error('Proxy is not active for current session');
     }
-    log.info("Initiating stop replaying traffic");
+    log.info('Initiating stop replaying traffic');
     proxy.getRecordingManager().stopReplay(id);
+  }
+
+  /**
+   * Aggregates the current health and configuration state of the proxy system.
+   * * This method performs a dual-layer diagnostic:
+   * 1. Host Layer: Checks if the proxy instance exists in the cache and verifies its execution status.
+   * 2. Transport Layer: Queries the physical device via ADB to list active reverse tunnels.
+   * * It is primarily used to determine if a connectivity issue originates from the
+   * Node.js server (Host) or the ADB bridge/USB connection (Device).
+   *
+   * @param next - The next middleware or handler in the execution chain (if applicable).
+   * @param driver - The Appium driver instance containing the ADB controller and session ID.
+   * @returns A Promise resolving to a JSON string representing the combined state of the proxy and ADB tunnels.
+   */
+  async getProxyState(next: any, driver: any): Promise<string> {
+    const adb = driver.adb;
+    const udid = adb.curDeviceId;
+    const adbReverseTunnels = await getAdbReverseTunnels(adb, udid);
+    const proxy = proxyCache.get(driver.sessionId);
+    const proxyServerStatus = {
+      isRegistered: !!proxy,
+      isStarted: proxy ? proxy.isStarted() : false,
+      ...proxy?.options,
+    };
+    const adbDeviceStatus = {
+      udid: udid,
+      activeAdbReverseTunnels: adbReverseTunnels,
+    };
+    const proxyState = {
+      proxyServerStatus: proxyServerStatus,
+      adbDeviceStatus: adbDeviceStatus,
+    };
+    return JSON.stringify(proxyState);
   }
 
   async execute(next: any, driver: any, script: any, args: any) {

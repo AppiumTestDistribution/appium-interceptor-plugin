@@ -30,7 +30,7 @@ export interface ProxyOptions {
   certificatePath: string;
   port: number;
   ip: string;
-  previousGlobalProxy?: ProxyOptions;
+  previousConfig?: ProxyOptions;
   whitelistedDomains?: string[];
   blacklistedDomains?: string[];
 }
@@ -86,7 +86,7 @@ export class Proxy {
   }
 
   public get previousGlobalProxy(): ProxyOptions | undefined {
-    return this.options.previousGlobalProxy ?? undefined
+    return this.options.previousConfig ?? undefined
   }
 
   public async start(): Promise<boolean> {
