@@ -19,7 +19,7 @@ import {
   getAdbReverseTunnels,
   removeReverseTunnel,
 } from './utils/adb';
-import { cleanUpProxyServer, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
+import { cleanUpProxyServer, parseJson, sanitizeMockConfig, setupProxyServer } from './utils/proxy';
 import proxyCache from './proxy-cache';
 import logger from './logger';
 import log from './logger';
@@ -112,6 +112,19 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     const interceptFlag = mergedCaps['appium:intercept'];
     const { deviceUDID, platformName } = response.value[1];
     const certDirectory = this.pluginArgs.certdirectory;
+    const whitelistedDomains =
+      ((domains) =>
+        Array.isArray(domains) ? domains : typeof domains === 'string' ? [domains] : [])(
+        typeof this.pluginArgs.whitelisteddomains === 'string'
+          ? parseJson(this.pluginArgs.whitelisteddomains)
+          : this.pluginArgs.whitelisteddomains
+      );
+    const blacklistedDomains =
+      ((domains) => (Array.isArray(domains) ? domains : typeof domains === 'string' ? [domains] : []))(
+        typeof this.pluginArgs.blacklisteddomains === 'string'
+          ? parseJson(this.pluginArgs.blacklisteddomains)
+          : this.pluginArgs.blacklisteddomains
+      );
     const sessionId = response.value[0];
     const adb = driver.sessions[sessionId]?.adb;
 
@@ -130,6 +143,8 @@ export class AppiumInterceptorPlugin extends BasePlugin {
         realDevice,
         certDirectory,
         currentWifiProxyConfig,
+        whitelistedDomains,
+        blacklistedDomains
       );
       await configureWifiProxy(adb, deviceUDID, realDevice, proxy.options);
       proxyCache.add(sessionId, proxy);
