@@ -54,6 +54,12 @@ Example of `blacklisteddomains`: all the calls go through the proxy, except the 
 
 Note: `whitelisteddomains` and `blacklisteddomains` are two different approach and are not supposed to be used together. If both are present, `blacklisteddomains` will be ignored.
 
+#### 👉 Upstream proxy
+
+To forward all intercepted traffic through another proxy, start Appium with the `upstreamproxy` argument:
+
+`appium server -ka 800 --use-plugins=appium-interceptor --plugin-appium-interceptor-upstreamproxy="http://proxy-host:3128" -pa /wd/hub`
+
 ### Capabilities
 
 To control the plugin behavior, you can use the following capabilities:

@@ -115,12 +115,23 @@ export async function setupProxyServer(
   certDirectory: string,
   currentWifiProxyConfig?: ProxyOptions,
   whitelistedDomains?: string[],
-  blacklistedDomains?: string[]
+  blacklistedDomains?: string[],
+  upstreamProxy?: string | null,
 ) {
   const certificatePath = prepareCertificate(sessionId, certDirectory);
   const port = await getPort();
   const _ip = isRealDevice ? 'localhost' : ip.address('public', 'ipv4');
-  const proxy = new Proxy({ deviceUDID, sessionId, certificatePath, port, ip: _ip, previousConfig: currentWifiProxyConfig, whitelistedDomains, blacklistedDomains});
+  const proxy = new Proxy({
+    deviceUDID,
+    sessionId,
+    certificatePath,
+    port,
+    ip: _ip,
+    previousConfig: currentWifiProxyConfig,
+    whitelistedDomains,
+    blacklistedDomains,
+    upstreamProxy: upstreamProxy ?? null,
+  });
   await proxy.start();
   if (!proxy.isStarted()) {
     throw new Error('Unable to start the proxy server');

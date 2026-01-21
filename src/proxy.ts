@@ -30,6 +30,7 @@ export interface ProxyOptions {
   certificatePath: string;
   port: number;
   ip: string;
+  upstreamProxy?: string | null;
   previousConfig?: ProxyOptions;
   whitelistedDomains?: string[];
   blacklistedDomains?: string[];
@@ -271,15 +272,15 @@ export class Proxy {
   }
 
   private async setupProxyChainUpstream(): Promise<void> {
-    const upstreamEnv = process.env.UPSTREAM_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
-    if (!upstreamEnv) return;
+    const upstreamProxy = this.options.upstreamProxy?.toString().trim();
+    if (!upstreamProxy) return;
     try {
       const proxyChain = require('proxy-chain');
       if (!proxyChain || !proxyChain.anonymizeProxy) {
         log.warn('proxy-chain not available; skipping upstream setup');
         return;
       }
-      const localUrl: string = await proxyChain.anonymizeProxy(upstreamEnv);
+      const localUrl: string = await proxyChain.anonymizeProxy(upstreamProxy);
       this.proxyChainLocalUrl = localUrl;
       this.closeProxyChain = proxyChain.closeAnonymizedProxy;
       this.upstreamAgent = new ProxyAgent({ getProxyForUrl: () => localUrl });
