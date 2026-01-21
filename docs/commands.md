@@ -8,7 +8,11 @@ To enable network interception, configure your Appium session using the `appium:
 
 👉 Once the proxy is successfully started (either automatically or manually), you can manage API mocking, recording, and sniffing using the commands detailed below.
 
-To route emulator traffic through another proxy, set one of the environment variables UPSTREAM_PROXY, HTTPS_PROXY, or HTTP_PROXY. All traffic from the emulator will then be forwarded to the specified upstream proxy.
+To route emulator traffic through another proxy, pass the Appium plugin argument `upstreamproxy` when starting the server, for example:
+
+`appium server -ka 800 --use-plugins=appium-interceptor --plugin-appium-interceptor-upstreamproxy="http://proxy-host:3128" -pa /wd/hub`
+
+All traffic from the emulator will then be forwarded to the specified upstream proxy.
 
 ### Mock Configuration
 Mock configuration is a json object that defines the specification for filtering and applying various updates to the api request and below is the structure for the config object.

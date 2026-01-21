@@ -84,6 +84,9 @@
         },
         "blacklisteddomains": {
           "type": "string"
+        }, 
+        "upstreamproxy": {
+          "type": "string"
         }
       },
       "title": "Appium interceptor plugin",

@@ -282,6 +282,11 @@ export class AppiumInterceptorPlugin extends BasePlugin {
           ? this.pluginArgs.blacklisteddomains
           : parseJson(this.pluginArgs.blacklisteddomains),
       );
+      const upstreamProxy =
+        typeof this.pluginArgs.upstreamproxy === 'string' &&
+        this.pluginArgs.upstreamproxy.trim().length > 0
+          ? this.pluginArgs.upstreamproxy.trim()
+          : null;
       const proxy = await setupProxyServer(
         sessionId,
         deviceUDID,
@@ -290,6 +295,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
         currentGlobalProxy,
         whitelistedDomains,
         blacklistedDomains,
+        upstreamProxy,
       );
 
       await configureWifiProxy(adb, deviceUDID, realDevice, proxy.options);
