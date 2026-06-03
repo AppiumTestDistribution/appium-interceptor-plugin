@@ -28,14 +28,12 @@ export async function isRealDevice(adb: ADBInstance, udid: UDID): Promise<boolea
 
 /**
  * Configures the global HTTP proxy settings for Wi-Fi traffic on the target Android device via ADB.
- * If a valid proxy configuration is provided:
- * 1. It sets up an 'adb reverse' tunnel for real devices to ensure the device can reach the host-side proxy.
- * 2. It sets the 'http_proxy' global setting to 'IP:PORT'.
+ * If a valid proxy configuration is provided, sets the 'http_proxy' global setting to 'IP:PORT'.
  * If the configuration is invalid or missing, it sets the 'http_proxy' to ':0' (which disables the proxy).
  *
  * @param adb - The ADB instance established by Appium.
  * @param udid - The Unique Device Identifier (UDID) of the Android device or emulator.
- * @param isRealDevice - Boolean indicating if the target is a physical device (requires adb reverse).
+ * @param isRealDevice - Boolean indicating if the target is a physical device.
  * @param proxyConfig - Optional configuration object containing the IP and port for the proxy.
  * @returns A Promise resolving to the output of the final ADB shell command.
  * @throws {Error} Throws an error if any ADB command execution fails.
@@ -64,14 +62,6 @@ export async function configureWifiProxy(
     }
 
     const host = isConfigValid ? `${proxyConfig.ip}:${proxyConfig.port}` : ':0';
-
-    if (isRealDevice && isConfigValid) {
-      await adbExecWithDevice(adb, udid, [
-        'reverse',
-        `tcp:${proxyConfig.port}`,
-        `tcp:${proxyConfig.port}`,
-      ]);
-    }
 
     return await adbExecWithDevice(adb, udid, [
       'shell',

@@ -119,7 +119,7 @@ export async function setupProxyServer(
 ) {
   const certificatePath = prepareCertificate(sessionId, certDirectory);
   const port = await getPort();
-  const _ip = isRealDevice ? 'localhost' : ip.address('public', 'ipv4');
+  const _ip = ip.address('public', 'ipv4');
   const proxy = new Proxy({ deviceUDID, sessionId, certificatePath, port, ip: _ip, previousConfig: currentWifiProxyConfig, whitelistedDomains, blacklistedDomains});
   await proxy.start();
   if (!proxy.isStarted()) {
