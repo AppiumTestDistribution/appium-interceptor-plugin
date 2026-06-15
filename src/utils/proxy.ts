@@ -115,10 +115,17 @@ export async function setupProxyServer(
   certDirectory: string,
   currentWifiProxyConfig?: ProxyOptions,
   whitelistedDomains?: string[],
-  blacklistedDomains?: string[]
+  blacklistedDomains?: string[],
+  interceptionPort?: number
 ) {
   const certificatePath = prepareCertificate(sessionId, certDirectory);
-  const port = await getPort();
+  if (interceptionPort) {
+    log.info(`Using custom interception port from capabilities: ${interceptionPort}`);
+  } else {
+    log.info(`No custom interception port specified in capabilities. Selecting a free port randomly...`);
+  }
+  const port = interceptionPort ? Number(interceptionPort) : await getPort();
+  log.info(`Selected port: ${port}`);
   const _ip = isRealDevice ? 'localhost' : ip.address('public', 'ipv4');
   const proxy = new Proxy({ deviceUDID, sessionId, certificatePath, port, ip: _ip, previousConfig: currentWifiProxyConfig, whitelistedDomains, blacklistedDomains});
   await proxy.start();
