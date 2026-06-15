@@ -136,7 +136,8 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       log.debug(
         `[${sessionId}] Capability 'startProxyAutomatically' is enabled. Initializing proxy setup...`,
       );
-      await this.setupProxy(adb, sessionId, deviceUDID);
+      const interceptionPort = mergedCaps['appium:interceptionPort'];
+      await this.setupProxy(adb, sessionId, deviceUDID, interceptionPort);
     } else {
       log.debug(
         `[${sessionId}] Capability 'startProxyAutomatically' is disabled. Use command 'startProxy' to start proxy.`,
@@ -237,7 +238,9 @@ export class AppiumInterceptorPlugin extends BasePlugin {
   }
 
   async startProxy(_next: any, driver: any) {
-    await this.setupProxy(driver.adb, driver.sessionId, driver.adb?.curDeviceId);
+    const caps = { ...driver.caps, ...driver.opts };
+    const interceptionPort = caps['appium:interceptionPort'];
+    await this.setupProxy(driver.adb, driver.sessionId, driver.adb?.curDeviceId, interceptionPort);
   }
 
   async stopProxy(_next: any, driver: any) {
@@ -255,8 +258,8 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     return proxy;
   }
 
-  private async setupProxy(adb: ADBInstance, sessionId: string, deviceUDID: UDID) {
-    log.debug(`setupProxy(sessionId=${sessionId}, deviceUDID:${deviceUDID})`);
+  private async setupProxy(adb: ADBInstance, sessionId: string, deviceUDID: UDID, interceptionPort?: number) {
+    log.debug(`setupProxy(sessionId=${sessionId}, deviceUDID:${deviceUDID}, interceptionPort:${interceptionPort})`);
 
     if (proxyCache.get(sessionId)) {
       log.warn(`[${sessionId}] A proxy is already active for this session. Skipping setup.`);
@@ -290,6 +293,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
         currentGlobalProxy,
         whitelistedDomains,
         blacklistedDomains,
+        interceptionPort,
       );
 
       await configureWifiProxy(adb, deviceUDID, realDevice, proxy.options);

@@ -61,6 +61,7 @@ To control the plugin behavior, you can use the following capabilities:
 | Capability                       | Type      | Default | Description                                                                                                              |
 | :------------------------------- | :-------- | :------ | :----------------------------------------------------------------------------------------------------------------------- |
 | `appium:startProxyAutomatically` | `boolean` | `false` | When `true`, the plugin initializes the proxy server and configures the device WiFi immediately during session creation. |
+| `appium:interceptionPort`        | `number`  | *None*  | Optional. Specifies a fixed port number to use for the interception proxy server instead of a randomly selected free port. |
 
 ---
 
@@ -75,7 +76,8 @@ Set `appium:startProxyAutomatically` to `true` in your capabilities. The plugin 
 const caps = {
   "platformName": "Android",
   "appium:automationName": "UiAutomator2",
-  "appium:startProxyAutomatically": true
+  "appium:startProxyAutomatically": true,
+  "appium:interceptionPort": 9000 // Optional: specifies a fixed port instead of selecting a free port randomly
 };
 ```
 
