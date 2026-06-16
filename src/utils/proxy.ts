@@ -18,6 +18,7 @@ import { minimatch } from 'minimatch';
 import http from 'http';
 import jsonpath from 'jsonpath';
 import regexParser from 'regex-parser';
+import ADB from 'appium-adb';
 import { validateMockConfig } from '../schema';
 import log from '../logger';
 
@@ -109,6 +110,7 @@ export function modifyResponseBody(ctx: IContext, mockConfig: MockConfig) {
 }
 
 export async function setupProxyServer(
+  adb: ADB,
   sessionId: string,
   deviceUDID: string,
   isRealDevice: boolean,
@@ -127,7 +129,18 @@ export async function setupProxyServer(
   const port = interceptionPort ? Number(interceptionPort) : await getPort();
   log.info(`Selected port: ${port}`);
   const _ip = isRealDevice ? 'localhost' : ip.address('public', 'ipv4');
-  const proxy = new Proxy({ deviceUDID, sessionId, certificatePath, port, ip: _ip, previousConfig: currentWifiProxyConfig, whitelistedDomains, blacklistedDomains});
+  const proxy = new Proxy({
+    deviceUDID: deviceUDID,
+    sessionId: sessionId,
+    certificatePath: certificatePath,
+    port: port,
+    ip: _ip,
+    adb: adb,
+    isRealDevice: isRealDevice,
+    previousConfig: currentWifiProxyConfig,
+    whitelistedDomains: whitelistedDomains,
+    blacklistedDomains: blacklistedDomains,
+  });
   await proxy.start();
   if (!proxy.isStarted()) {
     throw new Error('Unable to start the proxy server');
