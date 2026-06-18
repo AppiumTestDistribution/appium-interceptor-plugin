@@ -201,6 +201,14 @@ export class Proxy {
     this.mocks.delete(id);
   }
 
+  public removeAllMocks(): void {
+    this.mocks.clear();
+  }
+
+  public getMockCount(): number {
+    return this.mocks.size;
+  }
+
   public enableMock(id: string): void {
     this.mocks.get(id)?.setEnableStatus(true);
   }

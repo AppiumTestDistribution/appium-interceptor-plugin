@@ -134,6 +134,32 @@ Given a mockId return during addMock command, will remove the mock configuration
  // authorizationMock will not be active after this point and the test will proceed with normal flow
 ```
 
+### interceptor: removeAllMocks
+Removes all registered mock configurations from the proxy server at once.
+
+#### Example:
+
+```javascript
+ await driver.execute("interceptor: addMock", {
+    config: {
+        url: "**/api/users/**",
+        statusCode: 400
+    }
+ });
+
+ await driver.execute("interceptor: addMock", {
+    config: {
+        url: "**/api/login/**",
+        statusCode: 401
+    }
+ });
+
+ // Perform actions under mock state...
+
+ // Remove all mocks at once to return to normal flow
+ await driver.execute("interceptor: removeAllMocks");
+```
+
 ### interceptor: startListening
 
 Start listening for all network traffic (API calls) made by the device during a session
