@@ -127,6 +127,43 @@ describe('Plugin Test', () => {
     expect(page.includes('Error')).to.be.true;
   });
 
+  it('Should be able to remove all mocks at once', async () => {
+    const mockId = await driver.execute('interceptor: addMock', {
+      config: {
+        url: '/api/users?.*',
+        responseBody: JSON.stringify({
+          page: 1,
+          per_page: 1,
+          total: 1,
+          total_pages: 1,
+          data: [
+            {
+              id: 1,
+              email: 'allmocksremoved.test@reqres.in',
+              first_name: 'Removed',
+              last_name: 'Mocks',
+            },
+          ],
+        }),
+      },
+    });
+    expect(mockId).to.not.be.null;
+
+    // Verify mock is active
+    const el1 = await driver.$('xpath://android.widget.TextView[@text="Get User List"]');
+    await el1.click();
+    let page = await driver.getPageSource();
+    expect(page.includes('allmocksremoved.test@reqres.in')).to.be.true;
+
+    // Now remove all mocks
+    await driver.execute('interceptor: removeAllMocks');
+
+    // Click again and verify mock is no longer applied
+    await el1.click();
+    page = await driver.getPageSource();
+    expect(page.includes('allmocksremoved.test@reqres.in')).to.be.false;
+  });
+
   afterEach(async () => {
     await driver.deleteSession();
   });

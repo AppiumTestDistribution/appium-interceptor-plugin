@@ -37,6 +37,9 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       command: 'removeMock',
       params: { required: ['id'] },
     },
+    'interceptor: removeAllMocks': {
+      command: 'removeAllMocks',
+    },
     'interceptor: disableMock': {
       command: 'disableMock',
       params: { required: ['id'] },
@@ -176,6 +179,12 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     const proxy = this.getSessionProxy(driver.sessionId);
     log.debug(`[${driver.sessionId}] Removing mock rule with ID: ${id}`);
     proxy.removeMock(id);
+  }
+
+  async removeAllMocks(_next: any, driver: any) {
+    const proxy = this.getSessionProxy(driver.sessionId);
+    log.debug(`[${driver.sessionId}] Removing all mock rules`);
+    proxy.removeAllMocks();
   }
 
   async disableMock(_next: any, driver: any, id: string) {
