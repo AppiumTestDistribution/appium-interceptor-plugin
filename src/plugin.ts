@@ -115,11 +115,6 @@ export class AppiumInterceptorPlugin extends BasePlugin {
           }
         }
       }
-
-      if (signal === 'SIGINT' || signal === 'SIGTERM') {
-        // Send the signal to ourselves again so default or other handlers can run
-        process.kill(process.pid, signal);
-      }
     };
 
     const cleanupWithTimeout = async (signal: string, timeoutMs: number = 10000) => {
@@ -401,12 +396,16 @@ export class AppiumInterceptorPlugin extends BasePlugin {
 
       if (activeAdb) {
         // Revert WiFi settings to previous state or off
-        await configureWifiProxy(
-          activeAdb,
-          proxy.options.deviceUDID,
-          isReal,
-          proxy.previousGlobalProxy,
-        );
+        try {
+          await configureWifiProxy(
+            activeAdb,
+            proxy.options.deviceUDID,
+            isReal,
+            proxy.previousGlobalProxy,
+          );
+        } catch (err: any) {
+          log.warn(`[${sessionId}] Failed to revert WiFi proxy settings: ${err.message}`);
+        }
 
         // Explicitly remove the adb reverse tunnel if this is a real device
         if (isReal) {
