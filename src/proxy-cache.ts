@@ -14,6 +14,14 @@ class ProxyCache {
   get(sessionId: string) {
     return this.cache.get(sessionId);
   }
+
+  getAllSessionIds(): string[] {
+    return Array.from(this.cache.keys());
+  }
+
+  clear() {
+    this.cache.clear();
+  }
 }
 
 export default new ProxyCache();
