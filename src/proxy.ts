@@ -322,6 +322,10 @@ export class Proxy {
     if (mockConfig.delay) {
       await sleep(mockConfig.delay);
     }
+    if (ctx.proxyToClientResponse && ctx.proxyToClientResponse.destroyed) {
+      log.warn('Client disconnected during mock delay. Aborting request.');
+      return;
+    }
     this.modifyClientRequest(ctx, mockConfig);
     this.modifyClientResponse(ctx, mockConfig, next);
   }

@@ -89,6 +89,14 @@ export function modifyRequestBody(ctx: IContext, mockConfig: MockConfig) {
 
 export function modifyResponseBody(ctx: IContext, mockConfig: MockConfig) {
   const responseBodyChunks: Buffer[] = [];
+  if (mockConfig.statusCode) {
+    ctx.onResponse((ctx: IContext, callback) => {
+      if (ctx.serverToProxyResponse) {
+        ctx.serverToProxyResponse.statusCode = mockConfig.statusCode as number;
+      }
+      return callback();
+    });
+  }
   ctx.onResponseData((ctx: IContext, chunk: Buffer, callback: OnRequestDataCallback) => {
     responseBodyChunks.push(chunk);
     return callback(null, undefined);
@@ -97,9 +105,6 @@ export function modifyResponseBody(ctx: IContext, mockConfig: MockConfig) {
     const originalResponse = Buffer.concat(responseBodyChunks).toString('utf8');
     let responseBody = mockConfig.responseBody || originalResponse;
 
-    if (mockConfig.statusCode) {
-      ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
-    }
     if (mockConfig.updateResponseBody) {
       responseBody = processBody(mockConfig.updateResponseBody, responseBody);
     }
