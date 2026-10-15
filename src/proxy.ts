@@ -3,6 +3,7 @@ import { Proxy as HttpProxy, IContext, IProxyOptions } from 'http-mitm-proxy';
 import * as net from 'net';
 import { ProxyAgent } from 'proxy-agent';
 import { v4 as uuid } from 'uuid';
+import ADB from 'appium-adb';
 import {
   addDefaultMocks,
   compileMockConfig,
@@ -30,9 +31,12 @@ export interface ProxyOptions {
   certificatePath: string;
   port: number;
   ip: string;
+  adb?: ADB;
+  isRealDevice?: boolean;
   previousConfig?: ProxyOptions;
   whitelistedDomains?: string[];
   blacklistedDomains?: string[];
+  keepAlive?: boolean;
 }
 
 export class Proxy {
@@ -86,7 +90,20 @@ export class Proxy {
   }
 
   public get previousGlobalProxy(): ProxyOptions | undefined {
-    return this.options.previousConfig ?? undefined
+    return this.options.previousConfig ?? undefined;
+  }
+
+  public get keepAlive(): boolean {
+    return !!this.options.keepAlive;
+  }
+
+  public set keepAlive(value: boolean) {
+    this.options.keepAlive = value;
+  }
+
+  public setSession(sessionId: string, adb?: ADB) {
+    this.options.sessionId = sessionId;
+    if (adb) this.options.adb = adb;
   }
 
   public async start(): Promise<boolean> {
@@ -136,7 +153,7 @@ export class Proxy {
             }
             proxyToServerSocket.pipe(clientToProxySocket);
             clientToProxySocket.pipe(proxyToServerSocket);
-          }
+          },
         );
 
         proxyToServerSocket.on('close', () => {
@@ -161,7 +178,7 @@ export class Proxy {
         for (const sniffer of this.sniffers.values()) {
           sniffer.onApiRequest(requestData);
         }
-      })
+      }),
     );
     this.httpProxy.onRequest(this.handleMockApiRequest.bind(this));
 
@@ -199,6 +216,14 @@ export class Proxy {
 
   public removeMock(id: string): void {
     this.mocks.delete(id);
+  }
+
+  public removeAllMocks(): void {
+    this.mocks.clear();
+  }
+
+  public getMockCount(): number {
+    return this.mocks.size;
   }
 
   public enableMock(id: string): void {
@@ -263,15 +288,15 @@ export class Proxy {
       if (matchedMocks.length) {
         const compiledMock = compileMockConfig(matchedMocks);
         this.applyMockToRequest(ctx, compiledMock, next);
-      }
-      else {
+      } else {
         next();
       }
     }
   }
 
   private async setupProxyChainUpstream(): Promise<void> {
-    const upstreamEnv = process.env.UPSTREAM_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+    const upstreamEnv =
+      process.env.UPSTREAM_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
     if (!upstreamEnv) return;
     try {
       const proxyChain = require('proxy-chain');
@@ -288,7 +313,6 @@ export class Proxy {
       log.error(`Failed to initialize proxy-chain upstream: ${String(e)}`);
     }
   }
-
 
   private async findMatchingMocks(ctx: IContext): Promise<MockConfig[]> {
     const request = ctx.clientToProxyRequest;
@@ -322,6 +346,10 @@ export class Proxy {
     if (mockConfig.delay) {
       await sleep(mockConfig.delay);
     }
+    if (ctx.proxyToClientResponse && ctx.proxyToClientResponse.destroyed) {
+      log.warn('Client disconnected during mock delay. Aborting request.');
+      return;
+    }
     this.modifyClientRequest(ctx, mockConfig);
     this.modifyClientResponse(ctx, mockConfig, next);
   }
@@ -337,9 +365,9 @@ export class Proxy {
       ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
       ctx.proxyToClientResponse.end(mockConfig.responseBody);
     } else {
-      try{
+      try {
         modifyResponseBody(ctx, mockConfig);
-      }catch (error) {
+      } catch (error) {
         log.error(`Error modifying response body: ${error}`);
         next();
       }

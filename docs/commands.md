@@ -65,6 +65,20 @@ await driver.execute("interceptor: startProxy");
 await driver.execute("interceptor: stopProxy");
 ```
 
+### interceptor: setKeepAlive
+
+Dynamically enables or disables proxy persistence across session closures for the current session and device.
+
+#### Example:
+
+```javascript
+// Enable keep-alive to preserve proxy and reverse tunnels after session delete
+await driver.execute("interceptor: setKeepAlive", { keepAlive: true });
+
+// Or disable it dynamically
+await driver.execute("interceptor: setKeepAlive", false);
+```
+
 ### interceptor: addMock
 
 Add a new mock specification for intercepting and updating the request. The command will returns a unique id for each mock which can be used in future to delete the mock at any point in the test.
@@ -134,9 +148,37 @@ Given a mockId return during addMock command, will remove the mock configuration
  // authorizationMock will not be active after this point and the test will proceed with normal flow
 ```
 
+### interceptor: removeAllMocks
+Removes all registered mock configurations from the proxy server at once.
+
+#### Example:
+
+```javascript
+ await driver.execute("interceptor: addMock", {
+    config: {
+        url: "**/api/users/**",
+        statusCode: 400
+    }
+ });
+
+ await driver.execute("interceptor: addMock", {
+    config: {
+        url: "**/api/login/**",
+        statusCode: 401
+    }
+ });
+
+ // Perform actions under mock state...
+
+ // Remove all mocks at once to return to normal flow
+ await driver.execute("interceptor: removeAllMocks");
+```
+
 ### interceptor: startListening
 
 Start listening for all network traffic (API calls) made by the device during a session
+
+> ***Note:*** If no proxy server is currently active when calling `startListening`, the plugin automatically starts the proxy before attaching listeners.
 
 #### Example:
 

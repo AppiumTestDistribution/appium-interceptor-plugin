@@ -18,6 +18,7 @@ import { minimatch } from 'minimatch';
 import http from 'http';
 import jsonpath from 'jsonpath';
 import regexParser from 'regex-parser';
+import ADB from 'appium-adb';
 import { validateMockConfig } from '../schema';
 import log from '../logger';
 
@@ -52,7 +53,7 @@ export function modifyRequestUrl(ctx: IContext, mockConfig: MockConfig) {
   ctx.proxyToServerRequestOptions.host = updatedUrl.hostname;
   ctx.proxyToServerRequestOptions.path = `${updatedUrl.pathname}${updatedUrl.search}`;
   ctx.proxyToServerRequestOptions.port = updatedUrl.port || ctx.proxyToServerRequestOptions.port;
-  ctx.proxyToServerRequestOptions.headers.host= updatedUrl.hostname;
+  ctx.proxyToServerRequestOptions.headers.host = updatedUrl.hostname;
 }
 
 export function modifyRequestHeaders(ctx: IContext, mockConfig: MockConfig) {
@@ -89,6 +90,14 @@ export function modifyRequestBody(ctx: IContext, mockConfig: MockConfig) {
 
 export function modifyResponseBody(ctx: IContext, mockConfig: MockConfig) {
   const responseBodyChunks: Buffer[] = [];
+  if (mockConfig.statusCode) {
+    ctx.onResponse((ctx: IContext, callback) => {
+      if (ctx.serverToProxyResponse) {
+        ctx.serverToProxyResponse.statusCode = mockConfig.statusCode as number;
+      }
+      return callback();
+    });
+  }
   ctx.onResponseData((ctx: IContext, chunk: Buffer, callback: OnRequestDataCallback) => {
     responseBodyChunks.push(chunk);
     return callback(null, undefined);
@@ -97,9 +106,6 @@ export function modifyResponseBody(ctx: IContext, mockConfig: MockConfig) {
     const originalResponse = Buffer.concat(responseBodyChunks).toString('utf8');
     let responseBody = mockConfig.responseBody || originalResponse;
 
-    if (mockConfig.statusCode) {
-      ctx.proxyToClientResponse.writeHead(mockConfig.statusCode);
-    }
     if (mockConfig.updateResponseBody) {
       responseBody = processBody(mockConfig.updateResponseBody, responseBody);
     }
@@ -109,6 +115,7 @@ export function modifyResponseBody(ctx: IContext, mockConfig: MockConfig) {
 }
 
 export async function setupProxyServer(
+  adb: ADB,
   sessionId: string,
   deviceUDID: string,
   isRealDevice: boolean,
@@ -116,18 +123,31 @@ export async function setupProxyServer(
   currentWifiProxyConfig?: ProxyOptions,
   whitelistedDomains?: string[],
   blacklistedDomains?: string[],
-  interceptionPort?: number
+  interceptionPort?: number,
 ) {
   const certificatePath = prepareCertificate(sessionId, certDirectory);
   if (interceptionPort) {
     log.info(`Using custom interception port from capabilities: ${interceptionPort}`);
   } else {
-    log.info(`No custom interception port specified in capabilities. Selecting a free port randomly...`);
+    log.info(
+      `No custom interception port specified in capabilities. Selecting a free port randomly...`,
+    );
   }
   const port = interceptionPort ? Number(interceptionPort) : await getPort();
   log.info(`Selected port: ${port}`);
   const _ip = isRealDevice ? 'localhost' : ip.address('public', 'ipv4');
-  const proxy = new Proxy({ deviceUDID, sessionId, certificatePath, port, ip: _ip, previousConfig: currentWifiProxyConfig, whitelistedDomains, blacklistedDomains});
+  const proxy = new Proxy({
+    deviceUDID: deviceUDID,
+    sessionId: sessionId,
+    certificatePath: certificatePath,
+    port: port,
+    ip: _ip,
+    adb: adb,
+    isRealDevice: isRealDevice,
+    previousConfig: currentWifiProxyConfig,
+    whitelistedDomains: whitelistedDomains,
+    blacklistedDomains: blacklistedDomains,
+  });
   await proxy.start();
   if (!proxy.isStarted()) {
     throw new Error('Unable to start the proxy server');
@@ -143,7 +163,7 @@ export async function cleanUpProxyServer(proxy: Proxy) {
 
 function prepareCertificate(sessionId: string, certDirectory: string) {
   const sessionCertDirectory = path.join(os.tmpdir(), sessionId);
-  if(!fs.existsSync(certDirectory)){
+  if (!fs.existsSync(certDirectory)) {
     throw new Error(`Error certDirectory doesn't exist (${certDirectory})`);
   }
   fs.copySync(certDirectory, sessionCertDirectory);
