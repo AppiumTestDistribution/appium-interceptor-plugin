@@ -87,6 +87,10 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     'interceptor: stopProxy': {
       command: 'stopProxy',
     },
+    'interceptor: setKeepAlive': {
+      command: 'setKeepAlive',
+      params: { required: ['keepAlive'] },
+    },
   };
 
   constructor(name: string, cliArgs: CliArg) {
@@ -169,6 +173,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
 
     const mergedCaps = { ...caps.alwaysMatch, ..._.get(caps, 'firstMatch[0]', {}) };
     const startProxyAutomatically = mergedCaps['appium:startProxyAutomatically'] === true;
+    const keepProxyAlive = mergedCaps['appium:keepProxyAlive'] === true;
     const [sessionId, sessionCaps] = response.value;
     const { deviceUDID, platformName } = sessionCaps;
     const adb = driver.sessions[sessionId]?.adb;
@@ -187,12 +192,42 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       );
     }
 
+    const targetUDID =
+      deviceUDID ||
+      sessionCaps?.udid ||
+      mergedCaps['appium:udid'] ||
+      mergedCaps['appium:deviceUDID'] ||
+      mergedCaps['udid'] ||
+      adb?.curDeviceId;
+
+    const existingProxy = targetUDID ? proxyCache.getByDeviceId(targetUDID) : undefined;
+    if (existingProxy) {
+      log.info(
+        `[${sessionId}] Existing proxy detected on port ${existingProxy.port} for device ${targetUDID}. Rebinding session...`,
+      );
+      proxyCache.rebindSession(existingProxy, sessionId);
+      existingProxy.setSession(sessionId, adb);
+      if (keepProxyAlive) {
+        existingProxy.keepAlive = true;
+      }
+      if (existingProxy.options.isRealDevice && adb) {
+        try {
+          await adb.reverse(existingProxy.port, existingProxy.port);
+        } catch (err: any) {
+          log.warn(
+            `[${sessionId}] Failed to ensure reverse tunnel on session reload: ${err.message}`,
+          );
+        }
+      }
+      return response;
+    }
+
     if (startProxyAutomatically) {
       log.debug(
         `[${sessionId}] Capability 'startProxyAutomatically' is enabled. Initializing proxy setup...`,
       );
       const interceptionPort = mergedCaps['appium:interceptionPort'];
-      await this.setupProxy(adb, sessionId, deviceUDID, interceptionPort);
+      await this.setupProxy(adb, sessionId, targetUDID, interceptionPort, keepProxyAlive);
     } else {
       log.debug(
         `[${sessionId}] Capability 'startProxyAutomatically' is disabled. Use command 'startProxy' to start proxy.`,
@@ -203,6 +238,13 @@ export class AppiumInterceptorPlugin extends BasePlugin {
   }
 
   async deleteSession(next: () => any, driver: any, sessionId: string) {
+    const proxy = proxyCache.get(sessionId);
+    if (proxy?.keepAlive) {
+      log.info(
+        `[${sessionId}] 'keepProxyAlive' is enabled for device ${proxy.deviceUDID}. Skipping proxy teardown.`,
+      );
+      return next();
+    }
     log.debug(`[${sessionId}] Deleting session. Starting proxy cleanup...`);
     const adb = driver.sessions[sessionId]?.adb;
     await this.clearProxy(adb, sessionId);
@@ -260,6 +302,13 @@ export class AppiumInterceptorPlugin extends BasePlugin {
   }
 
   async startListening(_next: any, driver: any, config: SniffConfig): Promise<string> {
+    const existingProxy = proxyCache.get(driver.sessionId);
+    if (!existingProxy) {
+      log.info(
+        `[${driver.sessionId}] No active proxy server during startListening. Starting proxy...`,
+      );
+      await this.startProxy(null, driver);
+    }
     const proxy = this.getSessionProxy(driver.sessionId);
     log.debug(`[${driver.sessionId}] Starting network listener (config=${JSON.stringify(config)})`);
     return proxy.addSniffer(config);
@@ -309,11 +358,33 @@ export class AppiumInterceptorPlugin extends BasePlugin {
   async startProxy(_next: any, driver: any) {
     const caps = { ...driver.caps, ...driver.opts };
     const interceptionPort = caps['appium:interceptionPort'];
-    await this.setupProxy(driver.adb, driver.sessionId, driver.adb?.curDeviceId, interceptionPort);
+    const keepProxyAlive = caps['appium:keepProxyAlive'] === true;
+    await this.setupProxy(
+      driver.adb,
+      driver.sessionId,
+      driver.adb?.curDeviceId,
+      interceptionPort,
+      keepProxyAlive,
+    );
   }
 
   async stopProxy(_next: any, driver: any) {
+    const proxy = proxyCache.get(driver.sessionId);
+    if (proxy) {
+      proxy.keepAlive = false;
+    }
     await this.clearProxy(driver.adb, driver.sessionId);
+  }
+
+  async setKeepAlive(_next: any, driver: any, keepAlive: any) {
+    const proxy = this.getSessionProxy(driver.sessionId);
+    const value =
+      typeof keepAlive === 'object' && keepAlive !== null && 'keepAlive' in keepAlive
+        ? Boolean(keepAlive.keepAlive)
+        : Boolean(keepAlive);
+    proxy.keepAlive = value;
+    log.info(`[${driver.sessionId}] Proxy keepAlive updated to: ${value}`);
+    return value;
   }
 
   private getSessionProxy(sessionId: string) {
@@ -332,6 +403,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     sessionId: string,
     deviceUDID: UDID,
     interceptionPort?: number,
+    keepAlive?: boolean,
   ) {
     log.debug(
       `setupProxy(sessionId=${sessionId}, deviceUDID:${deviceUDID}, interceptionPort:${interceptionPort})`,
@@ -373,6 +445,9 @@ export class AppiumInterceptorPlugin extends BasePlugin {
         interceptionPort,
       );
 
+      if (keepAlive) {
+        proxy.keepAlive = true;
+      }
       await configureWifiProxy(adb, deviceUDID, realDevice, proxy.options);
 
       proxyCache.add(sessionId, proxy);

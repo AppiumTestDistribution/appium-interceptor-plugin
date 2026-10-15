@@ -6,7 +6,10 @@ export type ADBInstance = ADB;
 export type UDID = string;
 
 async function adbExecWithDevice(adb: ADBInstance, udid: UDID, args: string[]): Promise<string> {
-  return adb.adbExec(['-s', udid, ...args]);
+  if (adb.curDeviceId !== udid && typeof adb.setDeviceId === 'function') {
+    adb.setDeviceId(udid);
+  }
+  return adb.curDeviceId === udid ? adb.adbExec(args) : adb.adbExec(['-s', udid, ...args]);
 }
 
 export async function getDeviceProperty(

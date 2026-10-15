@@ -53,7 +53,7 @@ export function modifyRequestUrl(ctx: IContext, mockConfig: MockConfig) {
   ctx.proxyToServerRequestOptions.host = updatedUrl.hostname;
   ctx.proxyToServerRequestOptions.path = `${updatedUrl.pathname}${updatedUrl.search}`;
   ctx.proxyToServerRequestOptions.port = updatedUrl.port || ctx.proxyToServerRequestOptions.port;
-  ctx.proxyToServerRequestOptions.headers.host= updatedUrl.hostname;
+  ctx.proxyToServerRequestOptions.headers.host = updatedUrl.hostname;
 }
 
 export function modifyRequestHeaders(ctx: IContext, mockConfig: MockConfig) {
@@ -123,13 +123,15 @@ export async function setupProxyServer(
   currentWifiProxyConfig?: ProxyOptions,
   whitelistedDomains?: string[],
   blacklistedDomains?: string[],
-  interceptionPort?: number
+  interceptionPort?: number,
 ) {
   const certificatePath = prepareCertificate(sessionId, certDirectory);
   if (interceptionPort) {
     log.info(`Using custom interception port from capabilities: ${interceptionPort}`);
   } else {
-    log.info(`No custom interception port specified in capabilities. Selecting a free port randomly...`);
+    log.info(
+      `No custom interception port specified in capabilities. Selecting a free port randomly...`,
+    );
   }
   const port = interceptionPort ? Number(interceptionPort) : await getPort();
   log.info(`Selected port: ${port}`);
@@ -161,7 +163,7 @@ export async function cleanUpProxyServer(proxy: Proxy) {
 
 function prepareCertificate(sessionId: string, certDirectory: string) {
   const sessionCertDirectory = path.join(os.tmpdir(), sessionId);
-  if(!fs.existsSync(certDirectory)){
+  if (!fs.existsSync(certDirectory)) {
     throw new Error(`Error certDirectory doesn't exist (${certDirectory})`);
   }
   fs.copySync(certDirectory, sessionCertDirectory);
