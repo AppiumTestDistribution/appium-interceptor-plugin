@@ -19,6 +19,7 @@ import {
   getAdbReverseTunnels,
   getCurrentWifiProxyConfig,
   removeReverseTunnel,
+  addReverseTunnel,
   ADBInstance,
   UDID,
 } from './utils/adb';
@@ -212,7 +213,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       }
       if (existingProxy.options.isRealDevice && adb) {
         try {
-          await adb.reverse(existingProxy.port, existingProxy.port);
+          await addReverseTunnel(adb, targetUDID || existingProxy.deviceUDID, existingProxy.port);
         } catch (err: any) {
           log.warn(
             `[${sessionId}] Failed to ensure reverse tunnel on session reload: ${err.message}`,

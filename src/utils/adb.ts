@@ -199,6 +199,25 @@ export async function removeReverseTunnel(
   }
 }
 
+/**
+ * Establishes a reverse tunnel from the device to the host machine for the given port.
+ *
+ * @param adb - The ADB instance
+ * @param udid - The device unique identifier
+ * @param port - The specific port to bridge
+ */
+export async function addReverseTunnel(
+  adb: ADBInstance,
+  udid: UDID,
+  port: number | string,
+): Promise<string> {
+  try {
+    return await adbExecWithDevice(adb, udid, ['reverse', `tcp:${port}`, `tcp:${port}`]);
+  } catch (error: any) {
+    throw new Error(`Error creating reverse tunnel for port ${port} on ${udid}: ${error.message}`);
+  }
+}
+
 export async function openUrl(adb: ADBInstance, udid: UDID, url: string) {
   await adbExecWithDevice(adb, udid, [
     'shell',
