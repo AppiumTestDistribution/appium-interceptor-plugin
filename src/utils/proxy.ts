@@ -126,14 +126,25 @@ export async function setupProxyServer(
   interceptionPort?: number,
 ) {
   const certificatePath = prepareCertificate(sessionId, certDirectory);
+  let port: number;
+  const existingDevicePort = currentWifiProxyConfig?.port
+    ? Number(currentWifiProxyConfig.port)
+    : undefined;
+
   if (interceptionPort) {
-    log.info(`Using custom interception port from capabilities: ${interceptionPort}`);
+    port = Number(interceptionPort);
+    log.info(`Using custom interception port from capabilities: ${port}`);
+  } else if (existingDevicePort && !isNaN(existingDevicePort) && existingDevicePort > 0) {
+    port = existingDevicePort;
+    log.info(
+      `Detected active proxy on device (${currentWifiProxyConfig?.ip || 'localhost'}:${port}). Reusing this port for the proxy server.`,
+    );
   } else {
     log.info(
       `No custom interception port specified in capabilities. Selecting a free port randomly...`,
     );
+    port = await getPort();
   }
-  const port = interceptionPort ? Number(interceptionPort) : await getPort();
   log.info(`Selected port: ${port}`);
   const _ip = isRealDevice ? 'localhost' : ip.address('public', 'ipv4');
   const proxy = new Proxy({

@@ -211,12 +211,14 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       if (keepProxyAlive) {
         existingProxy.keepAlive = true;
       }
-      if (existingProxy.options.isRealDevice && adb) {
+      if (adb) {
         try {
-          await addReverseTunnel(adb, targetUDID || existingProxy.deviceUDID, existingProxy.port);
+          const udid = targetUDID || existingProxy.deviceUDID;
+          const isReal = existingProxy.options.isRealDevice ?? (await isRealDevice(adb, udid));
+          await configureWifiProxy(adb, udid, isReal, existingProxy.options);
         } catch (err: any) {
           log.warn(
-            `[${sessionId}] Failed to ensure reverse tunnel on session reload: ${err.message}`,
+            `[${sessionId}] Failed to ensure proxy configuration on session reload: ${err.message}`,
           );
         }
       }
@@ -410,8 +412,21 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       `setupProxy(sessionId=${sessionId}, deviceUDID:${deviceUDID}, interceptionPort:${interceptionPort})`,
     );
 
-    if (proxyCache.get(sessionId)) {
-      log.warn(`[${sessionId}] A proxy is already active for this session. Skipping setup.`);
+    const existingProxy =
+      proxyCache.get(sessionId) || (deviceUDID ? proxyCache.getByDeviceId(deviceUDID) : undefined);
+
+    if (existingProxy) {
+      log.info(
+        `[${sessionId}] Proxy already active on port ${existingProxy.port} for device ${deviceUDID}. Ensuring device proxy configuration...`,
+      );
+      proxyCache.rebindSession(existingProxy, sessionId);
+      existingProxy.setSession(sessionId, adb);
+      if (keepAlive !== undefined) {
+        existingProxy.keepAlive = keepAlive;
+      }
+      const realDevice =
+        existingProxy.options.isRealDevice ?? (await isRealDevice(adb, deviceUDID));
+      await configureWifiProxy(adb, deviceUDID, realDevice, existingProxy.options);
       return;
     }
 
@@ -480,16 +495,22 @@ export class AppiumInterceptorPlugin extends BasePlugin {
       const isReal = proxy.options.isRealDevice ?? false;
 
       if (activeAdb) {
-        // Revert WiFi settings to previous state or off
-        try {
-          await configureWifiProxy(
-            activeAdb,
-            proxy.options.deviceUDID,
-            isReal,
-            proxy.previousGlobalProxy,
-          );
-        } catch (err: any) {
-          log.warn(`[${sessionId}] Failed to revert WiFi proxy settings: ${err.message}`);
+        // Only revert if there was a real external corporate proxy before
+        if (
+          proxy.previousGlobalProxy &&
+          proxy.previousGlobalProxy.ip !== 'localhost' &&
+          proxy.previousGlobalProxy.ip !== '127.0.0.1'
+        ) {
+          try {
+            await configureWifiProxy(
+              activeAdb,
+              proxy.options.deviceUDID,
+              isReal,
+              proxy.previousGlobalProxy,
+            );
+          } catch (err: any) {
+            log.warn(`[${sessionId}] Failed to revert WiFi proxy settings: ${err.message}`);
+          }
         }
 
         // Explicitly remove the adb reverse tunnel if this is a real device
@@ -529,6 +550,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     const adb = driver.adb;
     const udid = adb.curDeviceId;
     const adbReverseTunnels = await getAdbReverseTunnels(adb, udid);
+    const currentGlobalProxy = await getCurrentWifiProxyConfig(adb, udid);
     const proxy = proxyCache.get(driver.sessionId);
     const proxyServerStatus = {
       isRegistered: !!proxy,
@@ -537,6 +559,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     };
     const adbDeviceStatus = {
       udid: udid,
+      currentGlobalProxy: currentGlobalProxy,
       activeAdbReverseTunnels: adbReverseTunnels,
     };
     const proxyState = {
