@@ -6,7 +6,10 @@ export type ADBInstance = ADB;
 export type UDID = string;
 
 async function adbExecWithDevice(adb: ADBInstance, udid: UDID, args: string[]): Promise<string> {
-  return adb.adbExec(['-s', udid, ...args]);
+  if (adb.curDeviceId !== udid && typeof adb.setDeviceId === 'function') {
+    adb.setDeviceId(udid);
+  }
+  return adb.curDeviceId === udid ? adb.adbExec(args) : adb.adbExec(['-s', udid, ...args]);
 }
 
 export async function getDeviceProperty(
@@ -193,6 +196,25 @@ export async function removeReverseTunnel(
     return await adbExecWithDevice(adb, udid, ['reverse', '--remove', `tcp:${port}`]);
   } catch (error: any) {
     throw new Error(`Error removing reverse tunnel for port ${port} on ${udid}: ${error.message}`);
+  }
+}
+
+/**
+ * Establishes a reverse tunnel from the device to the host machine for the given port.
+ *
+ * @param adb - The ADB instance
+ * @param udid - The device unique identifier
+ * @param port - The specific port to bridge
+ */
+export async function addReverseTunnel(
+  adb: ADBInstance,
+  udid: UDID,
+  port: number | string,
+): Promise<string> {
+  try {
+    return await adbExecWithDevice(adb, udid, ['reverse', `tcp:${port}`, `tcp:${port}`]);
+  } catch (error: any) {
+    throw new Error(`Error creating reverse tunnel for port ${port} on ${udid}: ${error.message}`);
   }
 }
 

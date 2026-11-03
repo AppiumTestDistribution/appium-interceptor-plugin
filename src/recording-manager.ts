@@ -134,6 +134,9 @@ export class RecordingManager {
     if (recordConfig.delay) {
       await sleep(recordConfig.delay);
     }
+    if (ctx.proxyToClientResponse && ctx.proxyToClientResponse.destroyed) {
+      return;
+    }
     this.modifyClientRequest(ctx, recordConfig);
     this.modifyClientResponse(ctx, recordConfig, next);
   }

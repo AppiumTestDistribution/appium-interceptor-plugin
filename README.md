@@ -87,11 +87,28 @@ If you want to control exactly when the proxy starts (e.g., only for specific te
 
 * **Start Proxy**: `driver.execute('interceptor: startProxy')`
 * **Stop Proxy**: `driver.execute('interceptor: stopProxy')`
+* **Set Keep-Alive**: `driver.execute('interceptor: setKeepAlive', { keepAlive: true })`
 
 > **Pro tip for troubleshooting**: These commands can be useful for **on-the-fly recovery** during a test session. If you encounter a network glitch or a proxy timeout, you can manually call `stopProxy` followed by `startProxy` to perform a "clean restart" without terminating your entire Appium session.
   
 > **Note**: Even in manual mode, the plugin **automatically handles the cleanup** when the session ends. 
 > Unlike a simple deactivation, the plugin **restores your previous device settings** (such as your original global proxy configuration) instead of just wiping them. This ensures your device returns exactly to the state it was in before the test started.
+
+### 3. Persistent Proxy Lifecycle (keepProxyAlive)
+
+By default, rebooting the device terminates the session and stops the proxy server.
+
+If your workflow needs to intercept or mock calls during early boot stages, you can persist the proxy across reboots so that previously defined rules remain active.
+
+To enable this behavior, set `appium:keepProxyAlive` to `true` in your session capabilities, or run the following command before rebooting the device:
+
+```javascript
+driver.execute('interceptor: setKeepAlive', true);
+```
+
+> **Notes**:
+> - On deleteSession, proxy teardown is skipped; the proxy instance remains cached and indexed by device UDID.
+> - Subsequent sessions targeting that device automatically rebind to the active proxy and re-establish reverse tunnels (adb reverse) without restarting the server.
 
 ## Usable commands
 

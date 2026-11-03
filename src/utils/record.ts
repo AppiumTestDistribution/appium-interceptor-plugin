@@ -75,6 +75,15 @@ export function modifyRequestBody(ctx: IContext, recordConfig: RecordConfig) {
 export function modifyResponseBody(ctx: IContext, recordConfig: RecordConfig) {
     const responseBodyChunks: Buffer[] = [];
 
+    if (recordConfig.statusCode) {
+      ctx.onResponse((ctx: IContext, callback) => {
+        if (ctx.serverToProxyResponse) {
+          ctx.serverToProxyResponse.statusCode = recordConfig.statusCode as number;
+        }
+        return callback();
+      });
+    }
+
     // Collect response data chunks
     ctx.onResponseData((ctx: IContext, chunk: Buffer, callback: OnRequestDataCallback) => {
       responseBodyChunks.push(chunk);
@@ -84,12 +93,6 @@ export function modifyResponseBody(ctx: IContext, recordConfig: RecordConfig) {
     // Handle end of response data
     ctx.onResponseEnd((ctx: IContext, callback: OnRequestDataCallback) => {
       const responseBody = Buffer.concat(responseBodyChunks).toString('utf8');
-      const statusCode = recordConfig.statusCode ?? ctx.serverToProxyResponse?.statusCode as number;
-      try {
-        ctx.proxyToClientResponse.writeHead(statusCode);
-      } catch (error) {
-        log.error(`Error occurred while writing status code to response for URL: ${recordConfig.url}`);
-      }
       try {
         ctx.proxyToClientResponse.write(responseBody);
       } catch (error) {
