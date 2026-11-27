@@ -18,6 +18,7 @@ import {
   isRealDevice,
   getAdbReverseTunnels,
   getCurrentWifiProxyConfig,
+  removeReverseTunnel,
   ADBInstance,
   UDID,
 } from './utils/adb';
@@ -89,6 +90,57 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     super(name, cliArgs);
     log.debug(`📱 Initializing plugin with CLI args: ${JSON.stringify(cliArgs)}`);
     this.pluginArgs = Object.assign({}, DefaultPluginArgs, cliArgs as unknown as IPluginArgs);
+    this.registerProcessExitHandlers();
+  }
+
+  private registerProcessExitHandlers() {
+    let isCleaningUp = false;
+
+    const cleanupAllProxies = async (signal: string) => {
+      if (isCleaningUp) return;
+      isCleaningUp = true;
+
+      const sessionIds = proxyCache.getAllSessionIds();
+      if (sessionIds.length > 0) {
+        log.info(
+          `[Cleanup] Process received ${signal}. Cleaning up ${sessionIds.length} active proxy sessions...`,
+        );
+        for (const sessionId of sessionIds) {
+          try {
+            await this.clearProxy(undefined, sessionId);
+          } catch (err: any) {
+            log.error(
+              `[Cleanup] Error during process exit cleanup for session ${sessionId}: ${err.message}`,
+            );
+          }
+        }
+      }
+    };
+
+    const cleanupWithTimeout = async (signal: string, timeoutMs: number = 10000) => {
+      return Promise.race([
+        cleanupAllProxies(signal),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Cleanup timeout')), timeoutMs),
+        ),
+      ]);
+    };
+
+    process.once('SIGINT', async () => {
+      try {
+        await cleanupWithTimeout('SIGINT');
+      } catch (err: any) {
+        log.error(`Cleanup failed or timed out: ${err.message}`);
+      }
+    });
+
+    process.once('SIGTERM', async () => {
+      try {
+        await cleanupWithTimeout('SIGTERM');
+      } catch (err: any) {
+        log.error(`Cleanup failed or timed out: ${err.message}`);
+      }
+    });
   }
 
   /**
@@ -162,6 +214,14 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     for (const sessionId of sessions) {
       const adb = driver.sessions[sessionId]?.adb;
       await this.clearProxy(adb, sessionId);
+    }
+
+    const remainingSessions = proxyCache.getAllSessionIds();
+    for (const sessionId of remainingSessions) {
+      log.warn(
+        `[${sessionId}] Session still in proxyCache after unexpected shutdown. Forcing cleanup...`,
+      );
+      await this.clearProxy(undefined, sessionId);
     }
   }
 
@@ -258,8 +318,15 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     return proxy;
   }
 
-  private async setupProxy(adb: ADBInstance, sessionId: string, deviceUDID: UDID, interceptionPort?: number) {
-    log.debug(`setupProxy(sessionId=${sessionId}, deviceUDID:${deviceUDID}, interceptionPort:${interceptionPort})`);
+  private async setupProxy(
+    adb: ADBInstance,
+    sessionId: string,
+    deviceUDID: UDID,
+    interceptionPort?: number,
+  ) {
+    log.debug(
+      `setupProxy(sessionId=${sessionId}, deviceUDID:${deviceUDID}, interceptionPort:${interceptionPort})`,
+    );
 
     if (proxyCache.get(sessionId)) {
       log.warn(`[${sessionId}] A proxy is already active for this session. Skipping setup.`);
@@ -286,6 +353,7 @@ export class AppiumInterceptorPlugin extends BasePlugin {
           : parseJson(this.pluginArgs.blacklisteddomains),
       );
       const proxy = await setupProxyServer(
+        adb,
         sessionId,
         deviceUDID,
         realDevice,
@@ -307,18 +375,49 @@ export class AppiumInterceptorPlugin extends BasePlugin {
     }
   }
 
-  private async clearProxy(adb: ADBInstance, sessionId: string) {
+  private async clearProxy(adb: ADBInstance | undefined, sessionId: string) {
     const proxy = proxyCache.get(sessionId);
     if (!proxy) {
       log.debug(`[${sessionId}] No proxy registered for this session. Nothing to clear.`);
       return;
     }
 
+    const activeAdb = adb || proxy.options.adb;
+    if (!activeAdb) {
+      log.warn(
+        `[${sessionId}] ADB instance is missing. Cannot revert proxy settings or remove reverse tunnels.`,
+      );
+    }
+
     log.debug(`[${sessionId}] Reverting device settings and cleaning up proxy resources...`);
 
     try {
-      // Revert WiFi settings to previous state or off
-      await configureWifiProxy(adb, proxy.options.deviceUDID, false, proxy.previousGlobalProxy);
+      const isReal = proxy.options.isRealDevice ?? false;
+
+      if (activeAdb) {
+        // Revert WiFi settings to previous state or off
+        try {
+          await configureWifiProxy(
+            activeAdb,
+            proxy.options.deviceUDID,
+            isReal,
+            proxy.previousGlobalProxy,
+          );
+        } catch (err: any) {
+          log.warn(`[${sessionId}] Failed to revert WiFi proxy settings: ${err.message}`);
+        }
+
+        // Explicitly remove the adb reverse tunnel if this is a real device
+        if (isReal) {
+          log.debug(`[${sessionId}] Removing reverse tunnel for port ${proxy.port}...`);
+          try {
+            await removeReverseTunnel(activeAdb, proxy.options.deviceUDID, proxy.port);
+          } catch (tunnelErr: any) {
+            log.warn(`[${sessionId}] Failed to remove reverse tunnel: ${tunnelErr.message}`);
+          }
+        }
+      }
+
       // Shutdown the local proxy server
       await cleanUpProxyServer(proxy);
       proxyCache.remove(sessionId);

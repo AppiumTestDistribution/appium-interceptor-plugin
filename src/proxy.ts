@@ -3,6 +3,7 @@ import { Proxy as HttpProxy, IContext, IProxyOptions } from 'http-mitm-proxy';
 import * as net from 'net';
 import { ProxyAgent } from 'proxy-agent';
 import { v4 as uuid } from 'uuid';
+import ADB from 'appium-adb';
 import {
   addDefaultMocks,
   compileMockConfig,
@@ -30,6 +31,8 @@ export interface ProxyOptions {
   certificatePath: string;
   port: number;
   ip: string;
+  adb?: ADB;
+  isRealDevice?: boolean;
   previousConfig?: ProxyOptions;
   whitelistedDomains?: string[];
   blacklistedDomains?: string[];
